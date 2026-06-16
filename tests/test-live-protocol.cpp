@@ -71,3 +71,47 @@ TEST_CASE("parse ignores unrelated messages gracefully")
     ServerMessage m = parse_server_message(R"({"setupComplete": {}})");
     REQUIRE(m.kind == ServerMessage::Kind::SetupComplete);
 }
+
+TEST_CASE("parse flags turnComplete and generationComplete on serverContent")
+{
+    std::string s =
+        R"({"serverContent": {"generationComplete": true, "turnComplete": true}})";
+    ServerMessage m = parse_server_message(s);
+    REQUIRE(m.turn_complete == true);
+    REQUIRE(m.generation_complete == true);
+    REQUIRE(m.interrupted == false);
+}
+
+TEST_CASE("parse flags interrupted on serverContent")
+{
+    ServerMessage m = parse_server_message(R"({"serverContent": {"interrupted": true}})");
+    REQUIRE(m.interrupted == true);
+    REQUIRE(m.kind == ServerMessage::Kind::Other);
+}
+
+TEST_CASE("parse keeps audio and turnComplete in one message")
+{
+    std::string s = R"({
+      "serverContent": { "turnComplete": true, "modelTurn": { "parts": [
+        { "inlineData": { "mimeType": "audio/pcm;rate=24000", "data": "AQIDBA==" } }
+      ] } }
+    })";
+    ServerMessage m = parse_server_message(s);
+    REQUIRE(m.kind == ServerMessage::Kind::Audio);
+    REQUIRE(m.audio == std::vector<uint8_t>{1, 2, 3, 4});
+    REQUIRE(m.turn_complete == true);
+}
+
+TEST_CASE("parse leaves turn flags false when absent")
+{
+    std::string s = R"({
+      "serverContent": { "modelTurn": { "parts": [
+        { "inlineData": { "mimeType": "audio/pcm;rate=24000", "data": "AQIDBA==" } }
+      ] } }
+    })";
+    ServerMessage m = parse_server_message(s);
+    REQUIRE(m.kind == ServerMessage::Kind::Audio);
+    REQUIRE(m.turn_complete == false);
+    REQUIRE(m.generation_complete == false);
+    REQUIRE(m.interrupted == false);
+}

@@ -16,6 +16,9 @@ struct ServerMessage {
     Kind kind = Kind::Other;
     std::vector<uint8_t> audio;
     std::string error_message;
+    bool turn_complete = false;
+    bool generation_complete = false;
+    bool interrupted = false;
 };
 
 ServerMessage parse_server_message(const std::string &json_text);

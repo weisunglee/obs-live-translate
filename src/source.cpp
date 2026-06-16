@@ -1,23 +1,23 @@
 #include "audio-pacing.hpp"
 #include "translation-session.hpp"
 #include <atomic>
-#include <chrono>
 #include <obs-module.h>
 #include <thread>
 #include <util/platform.h>
 #include <vector>
-#include <cstring>
 
 namespace {
+
+constexpr uint32_t kOutputSampleRate = 24000;
+constexpr size_t kDrainCapBytes = 9600;        // 200 ms of 24 kHz mono S16
+constexpr uint32_t kWaitTimeoutMs = 100;
+constexpr uint64_t kMaxLeadNs = 2000000000ULL; // 2 s
 
 struct SourceData {
     obs_source_t *context = nullptr;
     std::thread thread;
     std::atomic<bool> active{false};
-    lt::OutputJitterBuffer jitter{lt::output_jitter_start_bytes(),
-                                  lt::output_jitter_grace_ms()};
-    lt::PcmS16MonoSmoother smoother{120};
-    bool was_playing = false;
+    lt::OutputTimestamper timestamper{kOutputSampleRate, kMaxLeadNs};
 };
 
 const char *source_get_name(void *)
@@ -25,61 +25,34 @@ const char *source_get_name(void *)
     return obs_module_text("Gemini Translated Audio");
 }
 
-void emit_loop(SourceData *d)
+void push_loop(SourceData *d)
 {
-    const lt::AudioPacketShape packet = lt::audio_packet_shape(24000, 16, 1, 20);
-    const uint64_t packet_duration_ns =
-        lt::audio_packet_duration_ns(packet.frames, 24000);
-    uint64_t timestamp = os_gettime_ns();
-    std::vector<uint8_t> buf(packet.bytes);
+    lt::TranslationSession &session = lt::TranslationSession::instance();
+    std::vector<uint8_t> buf(kDrainCapBytes);
     while (d->active) {
-        std::memset(buf.data(), 0, buf.size());
-        lt::TranslationSession &session = lt::TranslationSession::instance();
-        size_t buffered = session.output_buffered_bytes();
-        bool input_idle_flush = session.input_idle_ms() >= 700;
-        lt::OutputPlaybackAction action =
-            d->jitter.next_action(buffered, buf.size(), 20, input_idle_flush);
-        bool has_audio = action == lt::OutputPlaybackAction::PlayAudio ||
-                         action == lt::OutputPlaybackAction::DrainPartial;
-        size_t valid_frames = 0;
-        if (has_audio) {
-            size_t bytes_to_pull = buf.size();
-            if (action == lt::OutputPlaybackAction::DrainPartial)
-                bytes_to_pull = buffered - (buffered % sizeof(int16_t));
-            size_t pulled = 0;
-            if (bytes_to_pull > 0)
-                pulled = session.pull_output_pcm(buf.data(), bytes_to_pull);
-            valid_frames = pulled / sizeof(int16_t);
-            if (action == lt::OutputPlaybackAction::DrainPartial &&
-                buffered > bytes_to_pull) {
-                uint8_t dangling = 0;
-                session.pull_output_pcm(&dangling, 1);
-            }
-        }
-        bool playing = action != lt::OutputPlaybackAction::Silence;
-        if (playing != d->was_playing) {
-            blog(LOG_INFO, "[live-translate] output %s buffered=%zu",
-                 playing ? "resumed" : "stopped", buffered);
-            d->was_playing = playing;
-        }
-        auto *samples = reinterpret_cast<int16_t *>(buf.data());
-        if (valid_frames > 0)
-            d->smoother.apply(samples, valid_frames, true);
-        if (valid_frames < packet.frames)
-            d->smoother.apply(samples + valid_frames,
-                              packet.frames - valid_frames, false);
+        if (session.take_interrupted())
+            d->timestamper.reset();
+
+        size_t n = session.wait_and_read_output(buf.data(), buf.size(),
+                                                kWaitTimeoutMs);
+        if (n < sizeof(int16_t))
+            continue;
+        size_t frames = n / sizeof(int16_t);
+
+        uint64_t ts = d->timestamper.next_timestamp(os_gettime_ns(), frames);
+        if (d->timestamper.over_lead())
+            blog(LOG_WARNING,
+                 "[live-translate] translated audio running ahead of clock; "
+                 "OBS may drop samples");
 
         struct obs_source_audio out = {};
         out.data[0] = buf.data();
-        out.frames = static_cast<uint32_t>(packet.frames);
+        out.frames = static_cast<uint32_t>(frames);
         out.speakers = SPEAKERS_MONO;
         out.format = AUDIO_FORMAT_16BIT;
-        out.samples_per_sec = 24000;
-        out.timestamp = timestamp;
+        out.samples_per_sec = kOutputSampleRate;
+        out.timestamp = ts;
         obs_source_output_audio(d->context, &out);
-
-        timestamp += packet_duration_ns;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 }
 
@@ -88,7 +61,7 @@ void *source_create(obs_data_t *, obs_source_t *source)
     auto *d = new SourceData();
     d->context = source;
     d->active = true;
-    d->thread = std::thread(emit_loop, d);
+    d->thread = std::thread(push_loop, d);
     return d;
 }
 
