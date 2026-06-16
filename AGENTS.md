@@ -7,44 +7,66 @@ translation via the Google Gemini Live API (`gemini-3.5-live-translate-preview`)
 A microphone's audio is streamed to Gemini and the translated audio is emitted
 as a separate OBS audio source that can live on its own track.
 
-The code does not exist yet. Your job is to **implement it from the plan**.
+**The plugin is implemented.** The original 12-task build plan (Task 0 → 11) and
+two follow-up plans (smooth playback, then the event-driven push-output rewrite)
+are complete and merged. See `README.md` for the architecture and `docs/` for the
+specs/plans. Your job now is **maintenance and incremental changes**, not a
+green-field build.
 
-## How to execute
+## Build / test / deploy (Windows x64)
 
-1. Read the design spec for context:
-   `docs/superpowers/specs/2026-06-16-obs-live-translate-design.md`
-2. Open the implementation plan:
-   `docs/superpowers/plans/2026-06-16-obs-live-translate-plugin.md`
-3. Read the plan's **"Prerequisites & Environment Setup (Windows)"** section and
-   set up the toolchain (Visual Studio 2022, CMake ≥ 3.24, Git, and libobs).
-4. Create a feature branch: `git checkout -b feature/implementation`.
-5. Work the plan's tasks **in order, top to bottom (Task 0 → Task 11)**. Each
-   task is small and self-contained with exact files, full code, and commands.
+This is a Windows-only build (needs libobs). Do **not** try to build on a
+non-Windows filesystem — there is no libobs there. `cmake` from Visual Studio is
+not on the non-interactive PATH; prepend it:
+
+```powershell
+set "PATH=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%"
+cmake --preset windows-x64                          # configure (first run fetches obs-deps)
+cmake --build --preset windows-x64                  # plugin DLL + tests
+cmake --build --preset windows-x64 --target unit-tests   # pure-logic tests, no libobs
+ctest --test-dir build_x64 --output-on-failure
+```
+
+Install: copy `build_x64\RelWithDebInfo\obs-live-translate.dll` to
+`C:\Program Files\obs-studio\obs-plugins\64bit\` (OBS must be closed).
 
 ## Rules
 
-- **Test-driven.** For each task: write the failing test → run it and confirm it
-  fails → write the minimal implementation → run it and confirm it passes →
-  commit. The plan gives the exact commands and expected output. A task is done
-  only when its command produces the stated expected result.
-- **Commit after every task**, using the commit message in that task's final
-  step. Do not squash tasks together.
-- **Do not skip verification.** If a build or test command can't run because a
-  prerequisite (e.g. libobs) isn't installed, stop and report exactly what is
-  missing instead of marking the task complete.
-- The **unit test target (`unit-tests`) does not need libobs** — Tasks 2–6 can be
-  built and verified before the OBS toolchain is fully set up. Tasks 0, 1, 7, 8,
-  9 require libobs.
-- Do not invent features beyond the plan. The spec's non-goals (captions,
-  multi-session, encrypted key storage, source-language selection) are out of
-  scope for v1.
+- **Test-driven.** For any change: write the failing test → confirm it fails →
+  write the minimal implementation → confirm it passes → commit. Pure logic lives
+  behind the libobs-free `unit-tests` target so it can be tested without OBS;
+  changes that touch libobs (`filter.cpp`, `source.cpp`, `translation-session`)
+  are verified by a full plugin build.
+- **Do not skip verification.** If a build/test can't run because a prerequisite
+  (e.g. libobs) is missing, stop and report what is missing — don't claim done.
+- **Commits**: author as `weisunglee`, never add Claude/AI trailers. Use a feature
+  branch; do not commit directly to `main` unless explicitly told.
+- Keep changes scoped. The spec's non-goals (captions, multiple simultaneous
+  sessions, encrypted key storage, explicit source-language selection) remain out
+  of scope for v1.
 
-## Key technical facts (already verified against Google's docs)
+## Architecture (quick map)
+
+- `filter.cpp` — mic audio filter: resample to 16 kHz mono → voice-gate → chunk →
+  hand to `TranslationSession`.
+- `translation-session.*` — shared singleton: WebSocket to Gemini (reconnect +
+  backoff), input/output ring buffers, output-ready notification + interrupt.
+- `source.cpp` — translated-audio source: event-driven push loop that drains the
+  output buffer and pushes to `obs_source_output_audio`, paced by
+  `OutputTimestamper` to keep a bounded (~100 ms) scheduling lead.
+- `audio-pacing.*`, `audio-convert.*`, `ring-buffer.*`, `backoff.*`,
+  `live-protocol.*`, `base64.*` — pure modules, each with a Catch2 test.
+
+## Key technical facts (verified against Google's docs)
 
 - Model: `models/gemini-3.5-live-translate-preview`, WebSocket (TLS) endpoint.
 - Input audio to Gemini: 16 kHz, 16-bit PCM, mono, little-endian, 100 ms chunks
   (3200 bytes/chunk).
 - Output audio from Gemini: 24 kHz, 16-bit PCM, mono.
 - `translationConfig` has only `targetLanguageCode` (BCP-47) and
-  `echoTargetLanguage` (hardcode `true` for v1). **No source-language param** —
-  the model auto-detects the input language.
+  `echoTargetLanguage`. **No source-language param** — the model auto-detects the
+  input language.
+- The output stream is continuous (the model emits even during silence) and does
+  **not** send `turnComplete`/`generationComplete`/`interrupted` in this mode.
+  Perceived cut-offs at sentence ends are the model's own phrase-boundary cadence,
+  not a plugin bug — the plugin's delivery is gap-free.

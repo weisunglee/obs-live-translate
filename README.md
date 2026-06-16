@@ -1,1 +1,121 @@
-# obs-live-translate
+# OBS Live Translate
+
+A native **Windows** OBS Studio plugin that does real-time **speech-to-speech**
+translation using the Google **Gemini Live API**
+(`gemini-3.5-live-translate-preview`). It captures a microphone's audio, streams
+it to Gemini, and plays the translated speech back as a separate OBS audio
+source you can route to its own track — so a stream/recording can carry both the
+original voice and a live translation.
+
+## How it works
+
+The plugin registers two OBS sources:
+
+1. **Gemini Live Translate** *(audio filter)* — add it to your microphone source.
+   It resamples the mic to 16 kHz mono 16-bit PCM, voice-gates and chunks the
+   audio (100 ms / 3200-byte chunks), and streams it to Gemini over a TLS
+   WebSocket. Configure your **API key** and **target language** in its
+   properties.
+
+2. **Gemini Translated Audio** *(audio source)* — add it to your scene on its own
+   audio track. It receives the 24 kHz translated PCM from Gemini and pushes it
+   into the OBS mixer as it arrives.
+
+```
+mic ─▶ [Gemini Live Translate filter]
+          resample 16 kHz mono → chunk → WebSocket ─▶ Gemini Live API
+                                                          │ 24 kHz PCM
+                                                          ▼
+       [Gemini Translated Audio source] ◀── ring buffer ◀┘
+          event-driven push loop → obs_source_output_audio → OBS mixer
+```
+
+A single shared `TranslationSession` owns the WebSocket connection (with
+reconnect/backoff) and the input/output audio buffers. The output path pushes
+every received PCM chunk to OBS with contiguous, duration-spaced timestamps,
+paced so the scheduling lead stays bounded (~100 ms) — the OBS mixer is the
+clock.
+
+## Status
+
+Implemented and building/testing on Windows x64. Current behavior:
+
+- ✅ Mic → Gemini streaming, translated audio played back via the OBS mixer.
+- ✅ Reconnect with exponential backoff; live API-key / target-language changes.
+- ✅ Event-driven push output with a bounded scheduling lead (low latency, tail
+  truncation minimized).
+- ⚠️ Brief pauses at phrase/sentence boundaries come from the translation
+  model's own cadence (the model pauses then emits the final words); the plugin
+  delivers the stream faithfully. See the notes in `docs/`.
+
+## Build (Windows x64)
+
+Requires Visual Studio 2022, CMake ≥ 3.28, and libobs (OBS 31.x). Dependencies
+(nlohmann/json, IXWebSocket + mbedTLS) are fetched automatically by CMake;
+libobs/obs-deps are provisioned via `buildspec.json`.
+
+```powershell
+# Configure (downloads OBS deps on first run)
+cmake --preset windows-x64
+
+# Build the plugin DLL + tests
+cmake --build --preset windows-x64
+
+# Build only the libobs-free unit tests
+cmake --build --preset windows-x64 --target unit-tests
+```
+
+The build produces `build_x64\RelWithDebInfo\obs-live-translate.dll`. Copy it to
+`…\obs-studio\obs-plugins\64bit\` (OBS must be closed) to install.
+
+## Test
+
+```powershell
+# Run the full unit-test suite
+ctest --test-dir build_x64 --output-on-failure
+
+# Run a single test case by name
+ctest --test-dir build_x64 -R "<test case name>" --output-on-failure
+```
+
+The `unit-tests` target covers the pure logic (base64, ring buffer, backoff,
+audio conversion, audio pacing/timestamper, Gemini protocol parsing) and does
+**not** require libobs.
+
+## Project layout
+
+```
+src/
+  plugin-main.cpp        module entry; registers the filter + source
+  filter.cpp             mic filter: resample → voice-gate → chunk → stream
+  source.cpp             translated-audio source: event-driven push loop
+  translation-session.*  shared WebSocket session + audio buffers + reconnect
+  live-protocol.*        build/parse Gemini Live API messages
+  audio-pacing.*         OutputTimestamper (contiguous, lead-bounded timestamps)
+  audio-convert.*        PCM conversion / chunking / voice gate
+  ring-buffer.*          bounded byte ring buffer
+  backoff.*              exponential reconnect backoff
+  base64.*, languages.hpp
+tests/                   Catch2 unit tests (one per pure module)
+docs/superpowers/        design specs + implementation plans
+cmake/, CMakePresets.json, buildspec.json
+```
+
+## Tech stack
+
+C++17 · CMake (obs-plugintemplate) · libobs (OBS 31.x) · IXWebSocket (TLS via
+mbedTLS) · nlohmann/json · Catch2.
+
+## Key API facts
+
+- Model: `models/gemini-3.5-live-translate-preview` over a TLS WebSocket.
+- **Input** to Gemini: 16 kHz, 16-bit PCM, mono, little-endian, 100 ms chunks.
+- **Output** from Gemini: 24 kHz, 16-bit PCM, mono.
+- `translationConfig` takes `targetLanguageCode` (BCP-47) and
+  `echoTargetLanguage`; there is **no source-language parameter** — the model
+  auto-detects the spoken language.
+
+## Non-goals (v1)
+
+Captions/subtitles, multiple simultaneous sessions, encrypted key storage, and
+explicit source-language selection are out of scope.
