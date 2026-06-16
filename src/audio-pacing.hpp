@@ -15,13 +15,14 @@ uint64_t audio_packet_duration_ns(size_t frames, uint32_t sample_rate);
 
 class OutputJitterBuffer {
 public:
-    explicit OutputJitterBuffer(size_t start_threshold_bytes)
-        : start_threshold_bytes_(start_threshold_bytes)
+    OutputJitterBuffer(size_t start_threshold_bytes, size_t min_play_bytes)
+        : start_threshold_bytes_(start_threshold_bytes), min_play_bytes_(min_play_bytes)
     {}
     bool should_play(size_t buffered_bytes, size_t packet_bytes);
 
 private:
     size_t start_threshold_bytes_;
+    size_t min_play_bytes_;
     bool active_ = false;
 };
 

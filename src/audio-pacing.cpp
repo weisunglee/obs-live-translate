@@ -21,7 +21,8 @@ bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes)
     if (!active_) {
         active_ = buffered_bytes >= start_threshold_bytes_;
     }
-    if (active_ && buffered_bytes < packet_bytes) {
+    const size_t minimum = min_play_bytes_ > packet_bytes ? min_play_bytes_ : packet_bytes;
+    if (active_ && buffered_bytes < minimum) {
         active_ = false;
     }
     return active_;

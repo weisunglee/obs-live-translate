@@ -14,7 +14,8 @@ struct SourceData {
     obs_source_t *context = nullptr;
     std::thread thread;
     std::atomic<bool> active{false};
-    lt::OutputJitterBuffer jitter{lt::audio_packet_shape(24000, 16, 1, 250).bytes};
+    lt::OutputJitterBuffer jitter{lt::audio_packet_shape(24000, 16, 1, 500).bytes,
+                                  lt::audio_packet_shape(24000, 16, 1, 150).bytes};
 };
 
 const char *source_get_name(void *)
