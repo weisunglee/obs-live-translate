@@ -28,6 +28,12 @@ uint64_t OutputTimestamper::next_timestamp(uint64_t now_ns, size_t frames)
     return ts;
 }
 
+uint64_t OutputTimestamper::pacing_delay_ns(uint64_t now_ns) const
+{
+    uint64_t lead = next_ts_ > now_ns ? next_ts_ - now_ns : 0;
+    return lead > max_lead_ns_ ? lead - max_lead_ns_ : 0;
+}
+
 void OutputTimestamper::reset()
 {
     next_ts_ = 0;

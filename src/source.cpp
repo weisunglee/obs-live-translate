@@ -1,6 +1,7 @@
 #include "audio-pacing.hpp"
 #include "translation-session.hpp"
 #include <atomic>
+#include <chrono>
 #include <obs-module.h>
 #include <thread>
 #include <util/platform.h>
@@ -11,7 +12,7 @@ namespace {
 constexpr uint32_t kOutputSampleRate = 24000;
 constexpr size_t kDrainCapBytes = 9600;        // 200 ms of 24 kHz mono S16
 constexpr uint32_t kWaitTimeoutMs = 100;
-constexpr uint64_t kMaxLeadNs = 2000000000ULL; // 2 s
+constexpr uint64_t kMaxLeadNs = 100000000ULL;  // 100 ms scheduling lead cap
 
 struct SourceData {
     obs_source_t *context = nullptr;
@@ -39,11 +40,15 @@ void push_loop(SourceData *d)
             continue;
         size_t frames = n / sizeof(int16_t);
 
-        uint64_t ts = d->timestamper.next_timestamp(os_gettime_ns(), frames);
-        if (d->timestamper.over_lead())
-            blog(LOG_WARNING,
-                 "[live-translate] translated audio running ahead of clock; "
-                 "OBS may drop samples");
+        uint64_t now = os_gettime_ns();
+        uint64_t ts = d->timestamper.next_timestamp(now, frames);
+        // Pace emission so we never schedule audio further than kMaxLeadNs ahead
+        // of the wall clock. Without this the scheduling lead, established during
+        // the model's initial burst, never drains (the stream has no gaps) and a
+        // recording stop truncates that whole lead off the tail.
+        uint64_t delay = d->timestamper.pacing_delay_ns(now);
+        if (delay > 0)
+            std::this_thread::sleep_for(std::chrono::nanoseconds(delay));
 
         struct obs_source_audio out = {};
         out.data[0] = buf.data();
