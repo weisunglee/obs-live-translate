@@ -25,6 +25,7 @@ public:
 private:
     size_t start_threshold_bytes_;
     size_t min_play_bytes_;
+    size_t pending_ticks_ = 0;
     bool active_ = false;
 };
 

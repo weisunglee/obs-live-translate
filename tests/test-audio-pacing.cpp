@@ -43,6 +43,20 @@ TEST_CASE("output jitter buffer tolerates low buffer until minimum")
     REQUIRE(jitter.should_play(start_threshold, 960));
 }
 
+TEST_CASE("output jitter buffer drains stale tail below start threshold")
+{
+    size_t start_threshold = output_jitter_start_bytes();
+    size_t min_play = output_jitter_min_bytes();
+    OutputJitterBuffer jitter(start_threshold, min_play);
+
+    size_t tail = audio_packet_shape(24000, 16, 1, 200).bytes;
+    for (int i = 0; i < 49; ++i)
+        REQUIRE_FALSE(jitter.should_play(tail, 960));
+    REQUIRE(jitter.should_play(tail, 960));
+    REQUIRE(jitter.should_play(min_play, 960));
+    REQUIRE_FALSE(jitter.should_play(min_play - 1, 960));
+}
+
 TEST_CASE("pcm smoother fades in when audio resumes")
 {
     PcmS16MonoSmoother smoother(4);

@@ -29,11 +29,20 @@ size_t output_jitter_min_bytes()
 bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes)
 {
     if (!active_) {
-        active_ = buffered_bytes >= start_threshold_bytes_;
+        if (buffered_bytes >= start_threshold_bytes_) {
+            active_ = true;
+            pending_ticks_ = 0;
+        } else if (buffered_bytes >= packet_bytes) {
+            ++pending_ticks_;
+            active_ = pending_ticks_ >= 50;
+        } else {
+            pending_ticks_ = 0;
+        }
     }
     const size_t minimum = min_play_bytes_ > packet_bytes ? min_play_bytes_ : packet_bytes;
     if (active_ && buffered_bytes < minimum) {
         active_ = false;
+        pending_ticks_ = 0;
     }
     return active_;
 }
