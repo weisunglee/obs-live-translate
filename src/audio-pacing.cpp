@@ -46,6 +46,9 @@ OutputPlaybackAction OutputJitterBuffer::next_action(size_t buffered_bytes,
         return OutputPlaybackAction::PlayAudio;
     }
 
+    if (buffered_bytes > 0 && state_ == State::Priming && input_idle_flush)
+        return OutputPlaybackAction::DrainPartial;
+
     if (state_ == State::Playing || state_ == State::Grace) {
         state_ = State::Grace;
         grace_elapsed_ms_ += elapsed_ms;
@@ -55,6 +58,8 @@ OutputPlaybackAction OutputJitterBuffer::next_action(size_t buffered_bytes,
 
     state_ = State::Priming;
     grace_elapsed_ms_ = 0;
+    if (buffered_bytes > 0)
+        return OutputPlaybackAction::DrainPartial;
     return OutputPlaybackAction::Silence;
 }
 

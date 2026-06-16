@@ -18,6 +18,7 @@ size_t output_jitter_grace_ms();
 enum class OutputPlaybackAction {
     Silence,
     PlayAudio,
+    DrainPartial,
     Hold,
 };
 

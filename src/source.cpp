@@ -39,9 +39,14 @@ void emit_loop(SourceData *d)
         bool input_idle_flush = session.input_idle_ms() >= 700;
         lt::OutputPlaybackAction action =
             d->jitter.next_action(buffered, buf.size(), 20, input_idle_flush);
-        bool has_audio = action == lt::OutputPlaybackAction::PlayAudio;
-        if (has_audio)
-            session.pull_output_pcm(buf.data(), buf.size());
+        bool has_audio = action == lt::OutputPlaybackAction::PlayAudio ||
+                         action == lt::OutputPlaybackAction::DrainPartial;
+        if (has_audio) {
+            size_t bytes_to_pull =
+                action == lt::OutputPlaybackAction::DrainPartial ? buffered
+                                                                 : buf.size();
+            session.pull_output_pcm(buf.data(), bytes_to_pull);
+        }
         bool playing = action != lt::OutputPlaybackAction::Silence;
         if (playing != d->was_playing) {
             blog(LOG_INFO, "[live-translate] output %s buffered=%zu",

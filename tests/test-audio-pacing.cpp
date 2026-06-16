@@ -79,6 +79,30 @@ TEST_CASE("output jitter can drain a tail after input idle while priming")
             OutputPlaybackAction::PlayAudio);
 }
 
+TEST_CASE("output jitter drains a partial tail after input idle while priming")
+{
+    OutputJitterBuffer jitter(output_jitter_start_bytes(),
+                              output_jitter_grace_ms());
+    REQUIRE(jitter.next_action(479, 960, 20, true) ==
+            OutputPlaybackAction::DrainPartial);
+}
+
+TEST_CASE("output jitter drains a partial tail once after grace expires")
+{
+    OutputJitterBuffer jitter(output_jitter_start_bytes(),
+                              output_jitter_grace_ms());
+    REQUIRE(jitter.next_action(output_jitter_start_bytes(), 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
+    REQUIRE(jitter.next_action(479, 960, 20, false) ==
+            OutputPlaybackAction::Hold);
+    REQUIRE(jitter.next_action(479, 960, 480, false) ==
+            OutputPlaybackAction::Hold);
+    REQUIRE(jitter.next_action(479, 960, 20, false) ==
+            OutputPlaybackAction::DrainPartial);
+    REQUIRE(jitter.next_action(0, 960, 20, false) ==
+            OutputPlaybackAction::Silence);
+}
+
 TEST_CASE("pcm smoother fades in when audio resumes")
 {
     PcmS16MonoSmoother smoother(4);
