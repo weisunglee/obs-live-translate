@@ -1,6 +1,7 @@
 #pragma once
 #include "ring-buffer.hpp"
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -19,6 +20,10 @@ public:
     void push_input_pcm(const uint8_t *data, size_t len);
     size_t pull_output_pcm(uint8_t *out, size_t len);
     size_t output_buffered_bytes();
+    void append_output(const uint8_t *data, size_t len);
+    void signal_interrupt();
+    size_t wait_and_read_output(uint8_t *out, size_t max_len, uint32_t timeout_ms);
+    bool take_interrupted();
     uint64_t input_idle_ms();
 
     ConnStatus status();
@@ -32,6 +37,9 @@ private:
 
     ByteRingBuffer input_{16000 * 2 * 5};
     ByteRingBuffer output_{24000 * 2 * 10};
+    std::condition_variable output_cv_;
+    std::mutex output_wait_mtx_;
+    std::atomic<bool> interrupted_{false};
     std::atomic<uint64_t> last_input_ms_{0};
 
     std::mutex cfg_mtx_;

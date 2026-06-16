@@ -107,6 +107,39 @@ size_t TranslationSession::pull_output_pcm(uint8_t *out, size_t len)
     return output_.read(out, len);
 }
 
+void TranslationSession::append_output(const uint8_t *data, size_t len)
+{
+    output_.write(data, len);
+    // Serialize with a consumer that is between checking the predicate and
+    // entering wait_for, so the notify cannot be lost.
+    { std::lock_guard<std::mutex> lk(output_wait_mtx_); }
+    output_cv_.notify_one();
+}
+
+void TranslationSession::signal_interrupt()
+{
+    output_.clear();
+    interrupted_.store(true, std::memory_order_relaxed);
+    { std::lock_guard<std::mutex> lk(output_wait_mtx_); }
+    output_cv_.notify_one();
+}
+
+size_t TranslationSession::wait_and_read_output(uint8_t *out, size_t max_len,
+                                                uint32_t timeout_ms)
+{
+    {
+        std::unique_lock<std::mutex> lk(output_wait_mtx_);
+        output_cv_.wait_for(lk, std::chrono::milliseconds(timeout_ms),
+                            [this] { return output_.size() > 0; });
+    }
+    return output_.read(out, max_len);
+}
+
+bool TranslationSession::take_interrupted()
+{
+    return interrupted_.exchange(false, std::memory_order_relaxed);
+}
+
 size_t TranslationSession::output_buffered_bytes()
 {
     return output_.size();
@@ -153,10 +186,15 @@ void TranslationSession::run()
                 backoff.reset();
             } else if (msg->type == ix::WebSocketMessageType::Message) {
                 ServerMessage m = parse_server_message(msg->str);
+                if (m.interrupted) {
+                    blog(LOG_INFO,
+                         "[live-translate] turn interrupted; dropping pending audio");
+                    signal_interrupt();
+                }
                 if (m.kind == ServerMessage::Kind::Audio && !m.audio.empty()) {
                     blog(LOG_DEBUG, "[live-translate] received audio bytes: %zu",
                          m.audio.size());
-                    output_.write(m.audio.data(), m.audio.size());
+                    append_output(m.audio.data(), m.audio.size());
                 } else if (m.kind == ServerMessage::Kind::Error) {
                     blog(LOG_ERROR, "[live-translate] server error: %s",
                          m.error_message.c_str());
