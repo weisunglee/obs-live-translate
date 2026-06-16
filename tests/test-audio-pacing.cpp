@@ -18,7 +18,7 @@ TEST_CASE("audio pacing calculates packet duration in nanoseconds")
 TEST_CASE("default output jitter thresholds favor stable recording")
 {
     REQUIRE(output_jitter_start_bytes() == audio_packet_shape(24000, 16, 1, 750).bytes);
-    REQUIRE(output_jitter_min_bytes() == audio_packet_shape(24000, 16, 1, 300).bytes);
+    REQUIRE(output_jitter_min_bytes() == audio_packet_shape(24000, 16, 1, 20).bytes);
 }
 
 TEST_CASE("output jitter buffer waits for threshold before playback")

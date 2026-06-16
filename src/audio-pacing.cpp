@@ -23,7 +23,7 @@ size_t output_jitter_start_bytes()
 
 size_t output_jitter_min_bytes()
 {
-    return audio_packet_shape(24000, 16, 1, 300).bytes;
+    return audio_packet_shape(24000, 16, 1, 20).bytes;
 }
 
 bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes)
