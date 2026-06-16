@@ -56,12 +56,13 @@ ServerMessage parse_server_message(const std::string &text)
                     auto mime = part["inlineData"].value("mimeType", "");
                     if (mime.rfind("audio/pcm", 0) == 0) {
                         m.kind = ServerMessage::Kind::Audio;
-                        m.audio = base64_decode(
+                        auto audio = base64_decode(
                             part["inlineData"]["data"].get<std::string>());
-                        return m;
+                        m.audio.insert(m.audio.end(), audio.begin(), audio.end());
                     }
                 }
             }
+            if (m.kind == ServerMessage::Kind::Audio) return m;
         }
     }
 

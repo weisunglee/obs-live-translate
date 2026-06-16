@@ -45,6 +45,19 @@ TEST_CASE("parse extracts pcm audio from serverContent")
     REQUIRE(m.audio == std::vector<uint8_t>{1, 2, 3, 4});
 }
 
+TEST_CASE("parse concatenates multiple pcm audio parts from one server message")
+{
+    std::string server = R"({
+      "serverContent": { "modelTurn": { "parts": [
+        { "inlineData": { "mimeType": "audio/pcm;rate=24000", "data": "AQI=" } },
+        { "inlineData": { "mimeType": "audio/pcm;rate=24000", "data": "AwQ=" } }
+      ] } }
+    })";
+    ServerMessage m = parse_server_message(server);
+    REQUIRE(m.kind == ServerMessage::Kind::Audio);
+    REQUIRE(m.audio == std::vector<uint8_t>{1, 2, 3, 4});
+}
+
 TEST_CASE("parse flags setup-rejected / error messages")
 {
     std::string err = R"({"error": {"code": 400, "message": "API key not valid"}})";
