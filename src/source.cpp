@@ -6,6 +6,7 @@
 #include <thread>
 #include <util/platform.h>
 #include <vector>
+#include <cstring>
 
 namespace {
 
@@ -23,20 +24,24 @@ const char *source_get_name(void *)
 void emit_loop(SourceData *d)
 {
     const lt::AudioPacketShape packet = lt::audio_packet_shape(24000, 16, 1, 20);
+    const uint64_t packet_duration_ns =
+        lt::audio_packet_duration_ns(packet.frames, 24000);
+    uint64_t timestamp = os_gettime_ns();
     std::vector<uint8_t> buf(packet.bytes);
     while (d->active) {
-        size_t n = lt::TranslationSession::instance().pull_output_pcm(
-            buf.data(), buf.size());
-        if (n >= 2) {
-            struct obs_source_audio out = {};
-            out.data[0] = buf.data();
-            out.frames = static_cast<uint32_t>(n / 2);
-            out.speakers = SPEAKERS_MONO;
-            out.format = AUDIO_FORMAT_16BIT;
-            out.samples_per_sec = 24000;
-            out.timestamp = os_gettime_ns();
-            obs_source_output_audio(d->context, &out);
-        }
+        std::memset(buf.data(), 0, buf.size());
+        lt::TranslationSession::instance().pull_output_pcm(buf.data(), buf.size());
+
+        struct obs_source_audio out = {};
+        out.data[0] = buf.data();
+        out.frames = static_cast<uint32_t>(packet.frames);
+        out.speakers = SPEAKERS_MONO;
+        out.format = AUDIO_FORMAT_16BIT;
+        out.samples_per_sec = 24000;
+        out.timestamp = timestamp;
+        obs_source_output_audio(d->context, &out);
+
+        timestamp += packet_duration_ns;
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 }

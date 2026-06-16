@@ -11,4 +11,9 @@ AudioPacketShape audio_packet_shape(uint32_t sample_rate, uint16_t bits_per_samp
     return shape;
 }
 
+uint64_t audio_packet_duration_ns(size_t frames, uint32_t sample_rate)
+{
+    return static_cast<uint64_t>(frames) * 1000000000ULL / sample_rate;
+}
+
 }
