@@ -36,7 +36,9 @@ void emit_loop(SourceData *d)
         std::memset(buf.data(), 0, buf.size());
         lt::TranslationSession &session = lt::TranslationSession::instance();
         size_t buffered = session.output_buffered_bytes();
-        bool playing = d->jitter.should_play(buffered, buf.size());
+        bool input_idle_flush = session.input_idle_ms() >= 700;
+        bool playing =
+            d->jitter.should_play(buffered, buf.size(), input_idle_flush);
         if (playing)
             session.pull_output_pcm(buf.data(), buf.size());
         if (playing != d->was_playing) {

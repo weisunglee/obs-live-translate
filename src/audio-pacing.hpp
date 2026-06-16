@@ -20,12 +20,12 @@ public:
     OutputJitterBuffer(size_t start_threshold_bytes, size_t min_play_bytes)
         : start_threshold_bytes_(start_threshold_bytes), min_play_bytes_(min_play_bytes)
     {}
-    bool should_play(size_t buffered_bytes, size_t packet_bytes);
+    bool should_play(size_t buffered_bytes, size_t packet_bytes,
+                     bool input_idle_flush);
 
 private:
     size_t start_threshold_bytes_;
     size_t min_play_bytes_;
-    size_t pending_ticks_ = 0;
     bool active_ = false;
 };
 

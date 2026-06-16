@@ -19,6 +19,7 @@ public:
     void push_input_pcm(const uint8_t *data, size_t len);
     size_t pull_output_pcm(uint8_t *out, size_t len);
     size_t output_buffered_bytes();
+    uint64_t input_idle_ms();
 
     ConnStatus status();
     std::string status_text();
@@ -31,6 +32,7 @@ private:
 
     ByteRingBuffer input_{16000 * 2 * 5};
     ByteRingBuffer output_{24000 * 2 * 10};
+    std::atomic<uint64_t> last_input_ms_{0};
 
     std::mutex cfg_mtx_;
     std::string api_key_;

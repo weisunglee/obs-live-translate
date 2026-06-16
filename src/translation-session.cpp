@@ -8,6 +8,16 @@
 
 namespace lt {
 
+namespace {
+uint64_t now_ms()
+{
+    return static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count());
+}
+}
+
 TranslationSession &TranslationSession::instance()
 {
     static TranslationSession s;
@@ -82,6 +92,7 @@ void TranslationSession::stop()
 
 void TranslationSession::push_input_pcm(const uint8_t *data, size_t len)
 {
+    last_input_ms_.store(now_ms(), std::memory_order_relaxed);
     input_.write(data, len);
 }
 
@@ -93,6 +104,14 @@ size_t TranslationSession::pull_output_pcm(uint8_t *out, size_t len)
 size_t TranslationSession::output_buffered_bytes()
 {
     return output_.size();
+}
+
+uint64_t TranslationSession::input_idle_ms()
+{
+    uint64_t last = last_input_ms_.load(std::memory_order_relaxed);
+    if (last == 0) return UINT64_MAX;
+    uint64_t now = now_ms();
+    return now >= last ? now - last : 0;
 }
 
 void TranslationSession::run()

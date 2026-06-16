@@ -26,23 +26,18 @@ size_t output_jitter_min_bytes()
     return audio_packet_shape(24000, 16, 1, 20).bytes;
 }
 
-bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes)
+bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes,
+                                     bool input_idle_flush)
 {
     if (!active_) {
-        if (buffered_bytes >= start_threshold_bytes_) {
+        if (buffered_bytes >= start_threshold_bytes_ ||
+            (input_idle_flush && buffered_bytes >= packet_bytes)) {
             active_ = true;
-            pending_ticks_ = 0;
-        } else if (buffered_bytes >= packet_bytes) {
-            ++pending_ticks_;
-            active_ = pending_ticks_ >= 50;
-        } else {
-            pending_ticks_ = 0;
         }
     }
     const size_t minimum = min_play_bytes_ > packet_bytes ? min_play_bytes_ : packet_bytes;
     if (active_ && buffered_bytes < minimum) {
         active_ = false;
-        pending_ticks_ = 0;
     }
     return active_;
 }
