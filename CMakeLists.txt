@@ -28,11 +28,23 @@ FetchContent_Declare(ixwebsocket
   GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
   GIT_TAG v11.4.5)
 FetchContent_MakeAvailable(ixwebsocket)
+set_target_properties(ixwebsocket PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
 
 add_library(${CMAKE_PROJECT_NAME} MODULE
   src/plugin-main.cpp
+  src/base64.cpp
+  src/audio-convert.cpp
+  src/ring-buffer.cpp
+  src/live-protocol.cpp
+  src/backoff.cpp
+  src/translation-session.cpp
 )
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+  OBS::libobs
+  ixwebsocket
+  nlohmann_json::nlohmann_json
+  bcrypt
+)
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 
 if(BUILD_TESTS)
