@@ -17,17 +17,19 @@ TEST_CASE("audio pacing calculates packet duration in nanoseconds")
 
 TEST_CASE("output jitter buffer waits for threshold before playback")
 {
-    OutputJitterBuffer jitter(24000);
-    REQUIRE_FALSE(jitter.should_play(23999, 960));
-    REQUIRE(jitter.should_play(24000, 960));
+    size_t start_threshold = audio_packet_shape(24000, 16, 1, 250).bytes;
+    OutputJitterBuffer jitter(start_threshold);
+    REQUIRE_FALSE(jitter.should_play(start_threshold - 1, 960));
+    REQUIRE(jitter.should_play(start_threshold, 960));
     REQUIRE(jitter.should_play(12000, 960));
 }
 
 TEST_CASE("output jitter buffer pauses on underrun and waits to refill")
 {
-    OutputJitterBuffer jitter(24000);
-    REQUIRE(jitter.should_play(24000, 960));
+    size_t start_threshold = audio_packet_shape(24000, 16, 1, 250).bytes;
+    OutputJitterBuffer jitter(start_threshold);
+    REQUIRE(jitter.should_play(start_threshold, 960));
     REQUIRE_FALSE(jitter.should_play(959, 960));
-    REQUIRE_FALSE(jitter.should_play(12000, 960));
-    REQUIRE(jitter.should_play(24000, 960));
+    REQUIRE_FALSE(jitter.should_play(start_threshold - 1, 960));
+    REQUIRE(jitter.should_play(start_threshold, 960));
 }

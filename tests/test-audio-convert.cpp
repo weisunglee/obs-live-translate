@@ -96,6 +96,13 @@ TEST_CASE("voice gate sends a short silence tail after speech")
     REQUIRE_FALSE(gate.should_send(false));
 }
 
+TEST_CASE("voice gate tail chunks rounds up milliseconds")
+{
+    REQUIRE(voice_gate_tail_chunks(500, 100) == 5);
+    REQUIRE(voice_gate_tail_chunks(550, 100) == 6);
+    REQUIRE(voice_gate_tail_chunks(500, 0) == 0);
+}
+
 TEST_CASE("voice gate extends tail when speech resumes")
 {
     VoiceGate gate(2);

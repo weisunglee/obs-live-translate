@@ -11,6 +11,7 @@ std::vector<float> downmix_to_mono(const float *const *planes,
 std::vector<uint8_t> float_to_s16le(const float *samples, size_t count);
 double s16le_rms(const uint8_t *pcm, size_t len);
 bool s16le_has_signal(const uint8_t *pcm, size_t len, double threshold);
+size_t voice_gate_tail_chunks(uint32_t tail_ms, uint32_t chunk_ms);
 
 class VoiceGate {
 public:

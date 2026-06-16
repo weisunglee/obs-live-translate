@@ -50,6 +50,12 @@ bool s16le_has_signal(const uint8_t *pcm, size_t len, double threshold)
     return s16le_rms(pcm, len) >= threshold;
 }
 
+size_t voice_gate_tail_chunks(uint32_t tail_ms, uint32_t chunk_ms)
+{
+    if (chunk_ms == 0) return 0;
+    return (tail_ms + chunk_ms - 1) / chunk_ms;
+}
+
 bool VoiceGate::should_send(bool has_signal)
 {
     if (has_signal) {

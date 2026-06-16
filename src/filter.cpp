@@ -11,7 +11,7 @@ struct FilterData {
     obs_source_t *context = nullptr;
     audio_resampler_t *resampler = nullptr;
     lt::Chunker chunker{3200};
-    lt::VoiceGate gate{10};
+    lt::VoiceGate gate{lt::voice_gate_tail_chunks(500, 100)};
     std::string api_key;
     std::string target_lang = "en";
 };
