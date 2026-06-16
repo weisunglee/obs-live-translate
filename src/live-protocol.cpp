@@ -49,6 +49,9 @@ ServerMessage parse_server_message(const std::string &text)
 
     if (j.contains("serverContent")) {
         const auto &sc = j["serverContent"];
+        m.turn_complete = sc.value("turnComplete", false);
+        m.generation_complete = sc.value("generationComplete", false);
+        m.interrupted = sc.value("interrupted", false);
         if (sc.contains("modelTurn") && sc["modelTurn"].contains("parts")) {
             for (const auto &part : sc["modelTurn"]["parts"]) {
                 if (part.contains("inlineData") &&
@@ -62,8 +65,10 @@ ServerMessage parse_server_message(const std::string &text)
                     }
                 }
             }
-            if (m.kind == ServerMessage::Kind::Audio) return m;
         }
+        if (m.kind == ServerMessage::Kind::Audio) return m;
+        m.kind = ServerMessage::Kind::Other;
+        return m;
     }
 
     m.kind = ServerMessage::Kind::Other;
