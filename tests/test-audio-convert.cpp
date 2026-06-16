@@ -84,3 +84,25 @@ TEST_CASE("s16le signal detector passes speech-level samples")
     }
     REQUIRE(s16le_has_signal(speech.data(), speech.size(), 500.0));
 }
+
+TEST_CASE("voice gate sends a short silence tail after speech")
+{
+    VoiceGate gate(3);
+    REQUIRE_FALSE(gate.should_send(false));
+    REQUIRE(gate.should_send(true));
+    REQUIRE(gate.should_send(false));
+    REQUIRE(gate.should_send(false));
+    REQUIRE(gate.should_send(false));
+    REQUIRE_FALSE(gate.should_send(false));
+}
+
+TEST_CASE("voice gate extends tail when speech resumes")
+{
+    VoiceGate gate(2);
+    REQUIRE(gate.should_send(true));
+    REQUIRE(gate.should_send(false));
+    REQUIRE(gate.should_send(true));
+    REQUIRE(gate.should_send(false));
+    REQUIRE(gate.should_send(false));
+    REQUIRE_FALSE(gate.should_send(false));
+}

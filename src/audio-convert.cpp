@@ -50,6 +50,19 @@ bool s16le_has_signal(const uint8_t *pcm, size_t len, double threshold)
     return s16le_rms(pcm, len) >= threshold;
 }
 
+bool VoiceGate::should_send(bool has_signal)
+{
+    if (has_signal) {
+        remaining_tail_chunks_ = tail_chunks_;
+        return true;
+    }
+    if (remaining_tail_chunks_ > 0) {
+        --remaining_tail_chunks_;
+        return true;
+    }
+    return false;
+}
+
 std::vector<std::vector<uint8_t>> Chunker::push(const uint8_t *data, size_t len)
 {
     acc_.insert(acc_.end(), data, data + len);

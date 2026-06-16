@@ -11,6 +11,7 @@ struct FilterData {
     obs_source_t *context = nullptr;
     audio_resampler_t *resampler = nullptr;
     lt::Chunker chunker{3200};
+    lt::VoiceGate gate{10};
     std::string api_key;
     std::string target_lang = "en";
 };
@@ -77,7 +78,8 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
     if (ok && out_frames > 0) {
         auto chunks = d->chunker.push(out[0], out_frames * 2);
         for (auto &c : chunks) {
-            if (!lt::s16le_has_signal(c.data(), c.size(), 500.0)) continue;
+            bool has_signal = lt::s16le_has_signal(c.data(), c.size(), 250.0);
+            if (!d->gate.should_send(has_signal)) continue;
             lt::TranslationSession::instance().push_input_pcm(c.data(), c.size());
         }
     }

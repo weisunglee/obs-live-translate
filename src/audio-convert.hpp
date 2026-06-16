@@ -12,6 +12,16 @@ std::vector<uint8_t> float_to_s16le(const float *samples, size_t count);
 double s16le_rms(const uint8_t *pcm, size_t len);
 bool s16le_has_signal(const uint8_t *pcm, size_t len, double threshold);
 
+class VoiceGate {
+public:
+    explicit VoiceGate(size_t tail_chunks) : tail_chunks_(tail_chunks) {}
+    bool should_send(bool has_signal);
+
+private:
+    size_t tail_chunks_;
+    size_t remaining_tail_chunks_ = 0;
+};
+
 class Chunker {
 public:
     explicit Chunker(size_t chunk_bytes) : chunk_bytes_(chunk_bytes) {}
