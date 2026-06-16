@@ -16,4 +16,15 @@ uint64_t audio_packet_duration_ns(size_t frames, uint32_t sample_rate)
     return static_cast<uint64_t>(frames) * 1000000000ULL / sample_rate;
 }
 
+bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes)
+{
+    if (!active_) {
+        active_ = buffered_bytes >= start_threshold_bytes_;
+    }
+    if (active_ && buffered_bytes < packet_bytes) {
+        active_ = false;
+    }
+    return active_;
+}
+
 }

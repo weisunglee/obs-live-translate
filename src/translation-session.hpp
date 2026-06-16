@@ -18,6 +18,7 @@ public:
 
     void push_input_pcm(const uint8_t *data, size_t len);
     size_t pull_output_pcm(uint8_t *out, size_t len);
+    size_t output_buffered_bytes();
 
     ConnStatus status();
     std::string status_text();

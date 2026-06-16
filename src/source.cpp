@@ -14,6 +14,7 @@ struct SourceData {
     obs_source_t *context = nullptr;
     std::thread thread;
     std::atomic<bool> active{false};
+    lt::OutputJitterBuffer jitter{24000};
 };
 
 const char *source_get_name(void *)
@@ -30,7 +31,9 @@ void emit_loop(SourceData *d)
     std::vector<uint8_t> buf(packet.bytes);
     while (d->active) {
         std::memset(buf.data(), 0, buf.size());
-        lt::TranslationSession::instance().pull_output_pcm(buf.data(), buf.size());
+        lt::TranslationSession &session = lt::TranslationSession::instance();
+        if (d->jitter.should_play(session.output_buffered_bytes(), buf.size()))
+            session.pull_output_pcm(buf.data(), buf.size());
 
         struct obs_source_audio out = {};
         out.data[0] = buf.data();

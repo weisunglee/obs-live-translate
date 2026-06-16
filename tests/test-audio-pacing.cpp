@@ -14,3 +14,20 @@ TEST_CASE("audio pacing calculates packet duration in nanoseconds")
 {
     REQUIRE(audio_packet_duration_ns(480, 24000) == 20000000ULL);
 }
+
+TEST_CASE("output jitter buffer waits for threshold before playback")
+{
+    OutputJitterBuffer jitter(24000);
+    REQUIRE_FALSE(jitter.should_play(23999, 960));
+    REQUIRE(jitter.should_play(24000, 960));
+    REQUIRE(jitter.should_play(12000, 960));
+}
+
+TEST_CASE("output jitter buffer pauses on underrun and waits to refill")
+{
+    OutputJitterBuffer jitter(24000);
+    REQUIRE(jitter.should_play(24000, 960));
+    REQUIRE_FALSE(jitter.should_play(959, 960));
+    REQUIRE_FALSE(jitter.should_play(12000, 960));
+    REQUIRE(jitter.should_play(24000, 960));
+}

@@ -90,6 +90,11 @@ size_t TranslationSession::pull_output_pcm(uint8_t *out, size_t len)
     return output_.read(out, len);
 }
 
+size_t TranslationSession::output_buffered_bytes()
+{
+    return output_.size();
+}
+
 void TranslationSession::run()
 {
     Backoff backoff(1000, 30000);
