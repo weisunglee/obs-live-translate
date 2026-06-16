@@ -16,6 +16,8 @@ struct SourceData {
     std::atomic<bool> active{false};
     lt::OutputJitterBuffer jitter{lt::output_jitter_start_bytes(),
                                   lt::output_jitter_min_bytes()};
+    lt::PcmS16MonoSmoother smoother{120};
+    bool was_playing = false;
 };
 
 const char *source_get_name(void *)
@@ -33,8 +35,17 @@ void emit_loop(SourceData *d)
     while (d->active) {
         std::memset(buf.data(), 0, buf.size());
         lt::TranslationSession &session = lt::TranslationSession::instance();
-        if (d->jitter.should_play(session.output_buffered_bytes(), buf.size()))
+        size_t buffered = session.output_buffered_bytes();
+        bool playing = d->jitter.should_play(buffered, buf.size());
+        if (playing)
             session.pull_output_pcm(buf.data(), buf.size());
+        if (playing != d->was_playing) {
+            blog(LOG_INFO, "[live-translate] output %s buffered=%zu",
+                 playing ? "resumed" : "underrun", buffered);
+            d->was_playing = playing;
+        }
+        d->smoother.apply(reinterpret_cast<int16_t *>(buf.data()), packet.frames,
+                          playing);
 
         struct obs_source_audio out = {};
         out.data[0] = buf.data();

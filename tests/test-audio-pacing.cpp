@@ -42,3 +42,33 @@ TEST_CASE("output jitter buffer tolerates low buffer until minimum")
     REQUIRE_FALSE(jitter.should_play(start_threshold - 1, 960));
     REQUIRE(jitter.should_play(start_threshold, 960));
 }
+
+TEST_CASE("pcm smoother fades in when audio resumes")
+{
+    PcmS16MonoSmoother smoother(4);
+    int16_t silence[4] = {};
+    smoother.apply(silence, 4, false);
+
+    int16_t audio[4] = {1000, 1000, 1000, 1000};
+    smoother.apply(audio, 4, true);
+    REQUIRE(audio[0] == 0);
+    REQUIRE(audio[1] == 250);
+    REQUIRE(audio[2] == 500);
+    REQUIRE(audio[3] == 750);
+}
+
+TEST_CASE("pcm smoother fades out on underrun instead of hard cutting")
+{
+    PcmS16MonoSmoother smoother(4);
+    int16_t audio[4] = {1000, 1000, 1000, 1000};
+    smoother.apply(audio, 4, true);
+    int16_t steady_audio[4] = {1000, 1000, 1000, 1000};
+    smoother.apply(steady_audio, 4, true);
+
+    int16_t silence[4] = {};
+    smoother.apply(silence, 4, false);
+    REQUIRE(silence[0] == 1000);
+    REQUIRE(silence[1] == 750);
+    REQUIRE(silence[2] == 500);
+    REQUIRE(silence[3] == 250);
+}

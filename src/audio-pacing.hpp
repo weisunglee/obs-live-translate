@@ -28,4 +28,15 @@ private:
     bool active_ = false;
 };
 
+class PcmS16MonoSmoother {
+public:
+    explicit PcmS16MonoSmoother(size_t fade_frames) : fade_frames_(fade_frames) {}
+    void apply(int16_t *samples, size_t frames, bool has_audio);
+
+private:
+    size_t fade_frames_;
+    bool previous_had_audio_ = false;
+    int16_t last_sample_ = 0;
+};
+
 }

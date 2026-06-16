@@ -38,4 +38,30 @@ bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes)
     return active_;
 }
 
+void PcmS16MonoSmoother::apply(int16_t *samples, size_t frames, bool has_audio)
+{
+    const size_t fade = fade_frames_ < frames ? fade_frames_ : frames;
+    if (fade == 0) {
+        previous_had_audio_ = has_audio;
+        return;
+    }
+
+    if (has_audio && !previous_had_audio_) {
+        for (size_t i = 0; i < fade; ++i)
+            samples[i] = static_cast<int16_t>(
+                static_cast<int32_t>(samples[i]) * static_cast<int32_t>(i) /
+                static_cast<int32_t>(fade));
+    } else if (!has_audio && previous_had_audio_) {
+        for (size_t i = 0; i < fade; ++i) {
+            size_t remaining = fade - i;
+            samples[i] = static_cast<int16_t>(
+                static_cast<int32_t>(last_sample_) *
+                static_cast<int32_t>(remaining) / static_cast<int32_t>(fade));
+        }
+    }
+
+    last_sample_ = has_audio && frames > 0 ? samples[frames - 1] : 0;
+    previous_had_audio_ = has_audio;
+}
+
 }
