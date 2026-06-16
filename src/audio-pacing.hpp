@@ -20,6 +20,10 @@ class OutputTimestamper {
 public:
     OutputTimestamper(uint32_t sample_rate, uint64_t max_lead_ns);
     uint64_t next_timestamp(uint64_t now_ns, size_t frames);
+    // Nanoseconds to wait before emitting so the furthest-scheduled audio
+    // stays within max_lead_ns of the wall clock (bounds OBS scheduling lead,
+    // so a recording stop truncates at most max_lead_ns of the tail).
+    uint64_t pacing_delay_ns(uint64_t now_ns) const;
     void reset();
     bool over_lead() const { return over_lead_; }
 

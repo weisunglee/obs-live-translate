@@ -56,3 +56,28 @@ TEST_CASE("timestamper does not flag lead within the guard")
     ts.next_timestamp(0, 480);
     REQUIRE_FALSE(ts.over_lead());
 }
+
+TEST_CASE("pacing delay is zero when scheduled audio is within target lead")
+{
+    OutputTimestamper ts(24000, 200000000ULL); // 200 ms target
+    ts.next_timestamp(1000000000ULL, 4800);    // 200 ms audio -> next_ts 1.2e9
+    // furthest scheduled = 1.2e9, now = 1.0e9, lead = 200 ms == target -> no wait
+    REQUIRE(ts.pacing_delay_ns(1000000000ULL) == 0);
+}
+
+TEST_CASE("pacing delay caps scheduling lead at the target")
+{
+    OutputTimestamper ts(24000, 200000000ULL);
+    ts.next_timestamp(1000000000ULL, 4800); // next_ts 1.2e9
+    ts.next_timestamp(1000000000ULL, 4800); // burst, same clock -> next_ts 1.4e9
+    // furthest scheduled = 1.4e9, now = 1.0e9, lead = 400 ms, target 200 ms -> wait 200 ms
+    REQUIRE(ts.pacing_delay_ns(1000000000ULL) == 200000000ULL);
+}
+
+TEST_CASE("pacing delay is zero once the clock catches up")
+{
+    OutputTimestamper ts(24000, 200000000ULL);
+    ts.next_timestamp(1000000000ULL, 4800); // next_ts 1.2e9
+    // clock advanced to the scheduled end -> no lead -> no wait
+    REQUIRE(ts.pacing_delay_ns(1200000000ULL) == 0);
+}
