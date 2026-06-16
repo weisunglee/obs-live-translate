@@ -102,11 +102,6 @@ void TranslationSession::push_input_pcm(const uint8_t *data, size_t len)
     input_.write(data, len);
 }
 
-size_t TranslationSession::pull_output_pcm(uint8_t *out, size_t len)
-{
-    return output_.read(out, len);
-}
-
 void TranslationSession::append_output(const uint8_t *data, size_t len)
 {
     output_.write(data, len);
@@ -138,11 +133,6 @@ size_t TranslationSession::wait_and_read_output(uint8_t *out, size_t max_len,
 bool TranslationSession::take_interrupted()
 {
     return interrupted_.exchange(false, std::memory_order_relaxed);
-}
-
-size_t TranslationSession::output_buffered_bytes()
-{
-    return output_.size();
 }
 
 uint64_t TranslationSession::input_idle_ms()

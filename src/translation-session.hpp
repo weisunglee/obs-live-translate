@@ -18,8 +18,6 @@ public:
     void stop();
 
     void push_input_pcm(const uint8_t *data, size_t len);
-    size_t pull_output_pcm(uint8_t *out, size_t len);
-    size_t output_buffered_bytes();
     void append_output(const uint8_t *data, size_t len);
     void signal_interrupt();
     size_t wait_and_read_output(uint8_t *out, size_t max_len, uint32_t timeout_ms);
