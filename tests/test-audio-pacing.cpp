@@ -134,3 +134,46 @@ TEST_CASE("pcm smoother fades out on underrun instead of hard cutting")
     REQUIRE(silence[2] == 500);
     REQUIRE(silence[3] == 250);
 }
+
+TEST_CASE("timestamper stamps the first buffer at the current clock")
+{
+    OutputTimestamper ts(24000, 2000000000ULL);
+    REQUIRE(ts.next_timestamp(1000000000ULL, 480) == 1000000000ULL);
+}
+
+TEST_CASE("timestamper keeps timestamps contiguous within a burst")
+{
+    OutputTimestamper ts(24000, 2000000000ULL);
+    ts.next_timestamp(1000000000ULL, 480); // advances next to 1.02e9
+    // Next chunk arrives almost immediately (burst): stays contiguous, not "now".
+    REQUIRE(ts.next_timestamp(1005000000ULL, 480) == 1020000000ULL);
+}
+
+TEST_CASE("timestamper clamps forward to the clock after a gap")
+{
+    OutputTimestamper ts(24000, 2000000000ULL);
+    ts.next_timestamp(1000000000ULL, 480);
+    REQUIRE(ts.next_timestamp(5000000000ULL, 480) == 5000000000ULL);
+}
+
+TEST_CASE("timestamper reset restarts at the clock")
+{
+    OutputTimestamper ts(24000, 2000000000ULL);
+    ts.next_timestamp(1000000000ULL, 480);
+    ts.reset();
+    REQUIRE(ts.next_timestamp(3000000000ULL, 480) == 3000000000ULL);
+}
+
+TEST_CASE("timestamper flags excessive lead over the clock")
+{
+    OutputTimestamper ts(24000, 2000000000ULL);
+    ts.next_timestamp(0, 72000); // 3 s of audio at clock 0 -> lead 3 s > 2 s guard
+    REQUIRE(ts.over_lead());
+}
+
+TEST_CASE("timestamper does not flag lead within the guard")
+{
+    OutputTimestamper ts(24000, 2000000000ULL);
+    ts.next_timestamp(0, 480); // 20 ms lead
+    REQUIRE_FALSE(ts.over_lead());
+}

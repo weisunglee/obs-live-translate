@@ -53,4 +53,21 @@ private:
     int16_t last_sample_ = 0;
 };
 
+// Produces contiguous, duration-spaced timestamps for pushed PCM so the OBS
+// mixer schedules playback. Clamps forward to the wall clock after a gap and
+// resets on interrupt.
+class OutputTimestamper {
+public:
+    OutputTimestamper(uint32_t sample_rate, uint64_t max_lead_ns);
+    uint64_t next_timestamp(uint64_t now_ns, size_t frames);
+    void reset();
+    bool over_lead() const { return over_lead_; }
+
+private:
+    uint32_t sample_rate_;
+    uint64_t max_lead_ns_;
+    uint64_t next_ts_ = 0;
+    bool over_lead_ = false;
+};
+
 }
