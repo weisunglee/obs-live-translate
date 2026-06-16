@@ -6,12 +6,14 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(unit-tests
   test-main.cpp
   test-audio-convert.cpp
+  test-audio-pacing.cpp
   test-base64.cpp
   test-backoff.cpp
   test-live-protocol.cpp
   test-ring-buffer.cpp
   test-smoke.cpp
   ${CMAKE_SOURCE_DIR}/src/audio-convert.cpp
+  ${CMAKE_SOURCE_DIR}/src/audio-pacing.cpp
   ${CMAKE_SOURCE_DIR}/src/backoff.cpp
   ${CMAKE_SOURCE_DIR}/src/base64.cpp
   ${CMAKE_SOURCE_DIR}/src/live-protocol.cpp

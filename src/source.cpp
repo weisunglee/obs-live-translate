@@ -1,3 +1,4 @@
+#include "audio-pacing.hpp"
 #include "translation-session.hpp"
 #include <atomic>
 #include <chrono>
@@ -21,9 +22,8 @@ const char *source_get_name(void *)
 
 void emit_loop(SourceData *d)
 {
-    const size_t kFrames = 2400;
-    const size_t kBytes = kFrames * 2;
-    std::vector<uint8_t> buf(kBytes);
+    const lt::AudioPacketShape packet = lt::audio_packet_shape(24000, 16, 1, 20);
+    std::vector<uint8_t> buf(packet.bytes);
     while (d->active) {
         size_t n = lt::TranslationSession::instance().pull_output_pcm(
             buf.data(), buf.size());
