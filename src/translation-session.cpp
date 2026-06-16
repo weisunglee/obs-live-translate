@@ -76,15 +76,21 @@ void TranslationSession::configure(const std::string &api_key,
          target_lang.c_str(), api_key.empty() ? "empty" : "set");
     config_changed_ = true;
     if (!running_.exchange(true)) {
+        // A previous run() may have exited on its own (e.g. auth error) and left
+        // thread_ joinable. Join it before reassigning, or the assignment would
+        // std::terminate.
+        if (thread_.joinable()) thread_.join();
         thread_ = std::thread([this] { run(); });
     }
 }
 
 void TranslationSession::stop()
 {
-    if (running_.exchange(false)) {
-        if (thread_.joinable()) thread_.join();
-    }
+    running_.exchange(false);
+    // Always join: run() may have already cleared running_ itself (auth error),
+    // in which case the thread is still joinable and must be reaped here so the
+    // singleton's destruction does not std::terminate.
+    if (thread_.joinable()) thread_.join();
     input_.clear();
     output_.clear();
     set_status(ConnStatus::Idle);
