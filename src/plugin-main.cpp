@@ -1,0 +1,21 @@
+#include <obs-module.h>
+
+OBS_DECLARE_MODULE()
+OBS_MODULE_USE_DEFAULT_LOCALE("obs-live-translate", "en-US")
+
+extern "C" const char *obs_module_name(void) { return "OBS Live Translate"; }
+extern "C" const char *obs_module_description(void)
+{
+    return "Real-time speech-to-speech translation via the Gemini Live API.";
+}
+
+bool obs_module_load(void)
+{
+    blog(LOG_INFO, "[live-translate] module loaded");
+    return true;
+}
+
+void obs_module_unload(void)
+{
+    blog(LOG_INFO, "[live-translate] module unloaded");
+}
