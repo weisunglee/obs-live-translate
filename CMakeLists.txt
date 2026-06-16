@@ -15,6 +15,20 @@ option(BUILD_TESTS "Build unit tests" ON)
 
 find_package(libobs REQUIRED)
 
+include(FetchContent)
+
+FetchContent_Declare(json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.11.3)
+FetchContent_MakeAvailable(json)
+
+set(USE_TLS ON CACHE BOOL "" FORCE)
+set(USE_MBED_TLS ON CACHE BOOL "" FORCE)
+FetchContent_Declare(ixwebsocket
+  GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
+  GIT_TAG v11.4.5)
+FetchContent_MakeAvailable(ixwebsocket)
+
 add_library(${CMAKE_PROJECT_NAME} MODULE
   src/plugin-main.cpp
 )
