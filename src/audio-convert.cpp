@@ -31,6 +31,25 @@ std::vector<uint8_t> float_to_s16le(const float *samples, size_t count)
     return out;
 }
 
+double s16le_rms(const uint8_t *pcm, size_t len)
+{
+    size_t samples = len / 2;
+    if (samples == 0) return 0.0;
+
+    double sum_sq = 0.0;
+    for (size_t i = 0; i < samples; ++i) {
+        int16_t sample = static_cast<int16_t>(pcm[i * 2] | (pcm[i * 2 + 1] << 8));
+        double v = static_cast<double>(sample);
+        sum_sq += v * v;
+    }
+    return std::sqrt(sum_sq / static_cast<double>(samples));
+}
+
+bool s16le_has_signal(const uint8_t *pcm, size_t len, double threshold)
+{
+    return s16le_rms(pcm, len) >= threshold;
+}
+
 std::vector<std::vector<uint8_t>> Chunker::push(const uint8_t *data, size_t len)
 {
     acc_.insert(acc_.end(), data, data + len);

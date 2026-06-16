@@ -76,8 +76,10 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
         (const uint8_t *const *)audio->data, audio->frames);
     if (ok && out_frames > 0) {
         auto chunks = d->chunker.push(out[0], out_frames * 2);
-        for (auto &c : chunks)
+        for (auto &c : chunks) {
+            if (!lt::s16le_has_signal(c.data(), c.size(), 500.0)) continue;
             lt::TranslationSession::instance().push_input_pcm(c.data(), c.size());
+        }
     }
     return audio;
 }

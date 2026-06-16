@@ -15,6 +15,14 @@ TEST_CASE("setup message has model and translation config")
     REQUIRE(j["setup"]["generationConfig"]["translationConfig"]["echoTargetLanguage"] == true);
 }
 
+TEST_CASE("setup message can disable target-language echo")
+{
+    std::string msg = build_setup_message("en", false);
+    json j = json::parse(msg);
+    REQUIRE(j["setup"]["generationConfig"]["translationConfig"]["targetLanguageCode"] == "en");
+    REQUIRE(j["setup"]["generationConfig"]["translationConfig"]["echoTargetLanguage"] == false);
+}
+
 TEST_CASE("realtime input message carries base64 pcm with correct mime")
 {
     std::vector<uint8_t> pcm{0x01, 0x02, 0x03, 0x04};

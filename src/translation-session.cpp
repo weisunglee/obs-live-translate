@@ -116,7 +116,7 @@ void TranslationSession::run()
         ws.setOnMessageCallback([&](const ix::WebSocketMessagePtr &msg) {
             if (msg->type == ix::WebSocketMessageType::Open) {
                 open = true;
-                std::string setup = build_setup_message(lang, true);
+                std::string setup = build_setup_message(lang, false);
                 ws.send(setup);
                 blog(LOG_INFO, "[live-translate] websocket opened; setup sent");
                 set_status(ConnStatus::Connected);

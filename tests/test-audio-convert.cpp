@@ -58,3 +58,29 @@ TEST_CASE("chunker emits fixed-size blocks and carries remainder")
     REQUIRE(out3.size() == 1);
     REQUIRE(out3[0].size() == 3200);
 }
+
+TEST_CASE("s16le signal detector ignores silence and low noise")
+{
+    std::vector<uint8_t> silence(3200, 0);
+    REQUIRE(s16le_rms(silence.data(), silence.size()) == Catch::Approx(0.0));
+    REQUIRE_FALSE(s16le_has_signal(silence.data(), silence.size(), 500.0));
+
+    std::vector<uint8_t> low_noise;
+    for (int i = 0; i < 1600; ++i) {
+        int16_t sample = (i % 2 == 0) ? 100 : -100;
+        low_noise.push_back(static_cast<uint8_t>(sample & 0xFF));
+        low_noise.push_back(static_cast<uint8_t>((sample >> 8) & 0xFF));
+    }
+    REQUIRE_FALSE(s16le_has_signal(low_noise.data(), low_noise.size(), 500.0));
+}
+
+TEST_CASE("s16le signal detector passes speech-level samples")
+{
+    std::vector<uint8_t> speech;
+    for (int i = 0; i < 1600; ++i) {
+        int16_t sample = (i % 2 == 0) ? 2000 : -2000;
+        speech.push_back(static_cast<uint8_t>(sample & 0xFF));
+        speech.push_back(static_cast<uint8_t>((sample >> 8) & 0xFF));
+    }
+    REQUIRE(s16le_has_signal(speech.data(), speech.size(), 500.0));
+}
