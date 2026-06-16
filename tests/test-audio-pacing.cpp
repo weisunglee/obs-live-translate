@@ -85,6 +85,8 @@ TEST_CASE("output jitter drains a partial tail after input idle while priming")
                               output_jitter_grace_ms());
     REQUIRE(jitter.next_action(479, 960, 20, true) ==
             OutputPlaybackAction::DrainPartial);
+    REQUIRE(jitter.next_action(0, 960, 20, false) ==
+            OutputPlaybackAction::Silence);
 }
 
 TEST_CASE("output jitter drains a partial tail once after grace expires")

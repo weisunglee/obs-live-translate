@@ -41,11 +41,20 @@ void emit_loop(SourceData *d)
             d->jitter.next_action(buffered, buf.size(), 20, input_idle_flush);
         bool has_audio = action == lt::OutputPlaybackAction::PlayAudio ||
                          action == lt::OutputPlaybackAction::DrainPartial;
+        size_t valid_frames = 0;
         if (has_audio) {
-            size_t bytes_to_pull =
-                action == lt::OutputPlaybackAction::DrainPartial ? buffered
-                                                                 : buf.size();
-            session.pull_output_pcm(buf.data(), bytes_to_pull);
+            size_t bytes_to_pull = buf.size();
+            if (action == lt::OutputPlaybackAction::DrainPartial)
+                bytes_to_pull = buffered - (buffered % sizeof(int16_t));
+            size_t pulled = 0;
+            if (bytes_to_pull > 0)
+                pulled = session.pull_output_pcm(buf.data(), bytes_to_pull);
+            valid_frames = pulled / sizeof(int16_t);
+            if (action == lt::OutputPlaybackAction::DrainPartial &&
+                buffered > bytes_to_pull) {
+                uint8_t dangling = 0;
+                session.pull_output_pcm(&dangling, 1);
+            }
         }
         bool playing = action != lt::OutputPlaybackAction::Silence;
         if (playing != d->was_playing) {
@@ -53,8 +62,12 @@ void emit_loop(SourceData *d)
                  playing ? "resumed" : "stopped", buffered);
             d->was_playing = playing;
         }
-        d->smoother.apply(reinterpret_cast<int16_t *>(buf.data()), packet.frames,
-                          has_audio);
+        auto *samples = reinterpret_cast<int16_t *>(buf.data());
+        if (valid_frames > 0)
+            d->smoother.apply(samples, valid_frames, true);
+        if (valid_frames < packet.frames)
+            d->smoother.apply(samples + valid_frames,
+                              packet.frames - valid_frames, false);
 
         struct obs_source_audio out = {};
         out.data[0] = buf.data();
