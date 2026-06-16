@@ -11,8 +11,8 @@ TEST_CASE("setup message has model and translation config")
     json j = json::parse(msg);
     REQUIRE(j["setup"]["model"] == "models/gemini-3.5-live-translate-preview");
     REQUIRE(j["setup"]["generationConfig"]["responseModalities"][0] == "AUDIO");
-    REQUIRE(j["setup"]["translationConfig"]["targetLanguageCode"] == "zh-TW");
-    REQUIRE(j["setup"]["translationConfig"]["echoTargetLanguage"] == true);
+    REQUIRE(j["setup"]["generationConfig"]["translationConfig"]["targetLanguageCode"] == "zh-TW");
+    REQUIRE(j["setup"]["generationConfig"]["translationConfig"]["echoTargetLanguage"] == true);
 }
 
 TEST_CASE("realtime input message carries base64 pcm with correct mime")
@@ -20,7 +20,7 @@ TEST_CASE("realtime input message carries base64 pcm with correct mime")
     std::vector<uint8_t> pcm{0x01, 0x02, 0x03, 0x04};
     std::string msg = build_realtime_input_message(pcm.data(), pcm.size());
     json j = json::parse(msg);
-    auto chunk = j["realtimeInput"]["mediaChunks"][0];
+    auto chunk = j["realtimeInput"]["audio"];
     REQUIRE(chunk["mimeType"] == "audio/pcm;rate=16000");
     REQUIRE(chunk["data"].get<std::string>() == "AQIDBA==");
 }

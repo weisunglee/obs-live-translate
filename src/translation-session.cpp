@@ -58,9 +58,12 @@ void TranslationSession::configure(const std::string &api_key,
         target_lang_ = target_lang;
     }
     if (api_key.empty()) {
+        blog(LOG_INFO, "[live-translate] API key cleared; stopping session");
         stop();
         return;
     }
+    blog(LOG_INFO, "[live-translate] configuring session: target=%s api_key=%s",
+         target_lang.c_str(), api_key.empty() ? "empty" : "set");
     config_changed_ = true;
     if (!running_.exchange(true)) {
         thread_ = std::thread([this] { run(); });
@@ -114,12 +117,15 @@ void TranslationSession::run()
             if (msg->type == ix::WebSocketMessageType::Open) {
                 open = true;
                 std::string setup = build_setup_message(lang, true);
-                ws.sendBinary(setup);
+                ws.send(setup);
+                blog(LOG_INFO, "[live-translate] websocket opened; setup sent");
                 set_status(ConnStatus::Connected);
                 backoff.reset();
             } else if (msg->type == ix::WebSocketMessageType::Message) {
                 ServerMessage m = parse_server_message(msg->str);
                 if (m.kind == ServerMessage::Kind::Audio && !m.audio.empty()) {
+                    blog(LOG_DEBUG, "[live-translate] received audio bytes: %zu",
+                         m.audio.size());
                     output_.write(m.audio.data(), m.audio.size());
                 } else if (m.kind == ServerMessage::Kind::Error) {
                     blog(LOG_ERROR, "[live-translate] server error: %s",
@@ -130,6 +136,13 @@ void TranslationSession::run()
                 }
             } else if (msg->type == ix::WebSocketMessageType::Close ||
                        msg->type == ix::WebSocketMessageType::Error) {
+                if (msg->type == ix::WebSocketMessageType::Error) {
+                    blog(LOG_ERROR, "[live-translate] websocket error: %s",
+                         msg->errorInfo.reason.c_str());
+                } else {
+                    blog(LOG_INFO, "[live-translate] websocket closed: %s",
+                         msg->closeInfo.reason.c_str());
+                }
                 open = false;
             }
         });
@@ -143,7 +156,7 @@ void TranslationSession::run()
             if (n == chunk.size() && open) {
                 std::string m =
                     build_realtime_input_message(chunk.data(), chunk.size());
-                ws.sendBinary(m);
+                ws.send(m);
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }

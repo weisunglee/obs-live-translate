@@ -99,7 +99,8 @@ obs_properties_t *filter_properties(void *)
         obs_module_text("Note: the API key is stored in plaintext in your "
                         "scene collection file. Do not share that file."),
         OBS_TEXT_INFO);
-    obs_properties_add_text(props, "status", obs_module_text("Status"),
+    obs_properties_add_text(props, "status",
+                            lt::TranslationSession::instance().status_text().c_str(),
                             OBS_TEXT_INFO);
     return props;
 }

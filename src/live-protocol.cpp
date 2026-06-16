@@ -11,8 +11,8 @@ std::string build_setup_message(const std::string &target, bool echo)
     json j;
     j["setup"]["model"] = "models/gemini-3.5-live-translate-preview";
     j["setup"]["generationConfig"]["responseModalities"] = json::array({"AUDIO"});
-    j["setup"]["translationConfig"]["targetLanguageCode"] = target;
-    j["setup"]["translationConfig"]["echoTargetLanguage"] = echo;
+    j["setup"]["generationConfig"]["translationConfig"]["targetLanguageCode"] = target;
+    j["setup"]["generationConfig"]["translationConfig"]["echoTargetLanguage"] = echo;
     return j.dump();
 }
 
@@ -22,7 +22,7 @@ std::string build_realtime_input_message(const uint8_t *pcm, size_t len)
     chunk["mimeType"] = "audio/pcm;rate=16000";
     chunk["data"] = base64_encode(pcm, len);
     json j;
-    j["realtimeInput"]["mediaChunks"] = json::array({chunk});
+    j["realtimeInput"]["audio"] = chunk;
     return j.dump();
 }
 
