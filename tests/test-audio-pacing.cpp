@@ -15,45 +15,68 @@ TEST_CASE("audio pacing calculates packet duration in nanoseconds")
     REQUIRE(audio_packet_duration_ns(480, 24000) == 20000000ULL);
 }
 
-TEST_CASE("default output jitter thresholds favor stable recording")
+TEST_CASE("default output jitter thresholds favor smooth translated speech")
 {
-    REQUIRE(output_jitter_start_bytes() == audio_packet_shape(24000, 16, 1, 750).bytes);
-    REQUIRE(output_jitter_min_bytes() == audio_packet_shape(24000, 16, 1, 20).bytes);
+    REQUIRE(output_jitter_start_bytes() == audio_packet_shape(24000, 16, 1, 1200).bytes);
+    REQUIRE(output_jitter_grace_ms() == 500);
 }
 
-TEST_CASE("output jitter buffer waits for threshold before playback")
+TEST_CASE("output jitter waits for startup threshold before playback")
 {
     size_t start_threshold = output_jitter_start_bytes();
-    size_t min_play = output_jitter_min_bytes();
-    OutputJitterBuffer jitter(start_threshold, min_play);
-    REQUIRE_FALSE(jitter.should_play(start_threshold - 1, 960, false));
-    REQUIRE(jitter.should_play(start_threshold, 960, false));
-    REQUIRE(jitter.should_play(min_play, 960, false));
+    OutputJitterBuffer jitter(start_threshold, output_jitter_grace_ms());
+    REQUIRE(jitter.next_action(start_threshold - 1, 960, 20, false) ==
+            OutputPlaybackAction::Silence);
+    REQUIRE(jitter.next_action(start_threshold, 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
 }
 
-TEST_CASE("output jitter buffer tolerates low buffer until minimum")
+TEST_CASE("output jitter keeps playing below startup threshold after start")
 {
     size_t start_threshold = output_jitter_start_bytes();
-    size_t min_play = output_jitter_min_bytes();
-    OutputJitterBuffer jitter(start_threshold, min_play);
-    REQUIRE(jitter.should_play(start_threshold, 960, false));
-    REQUIRE(jitter.should_play(min_play, 960, false));
-    REQUIRE_FALSE(jitter.should_play(min_play - 1, 960, false));
-    REQUIRE_FALSE(jitter.should_play(start_threshold - 1, 960, false));
-    REQUIRE(jitter.should_play(start_threshold, 960, false));
+    OutputJitterBuffer jitter(start_threshold, output_jitter_grace_ms());
+    REQUIRE(jitter.next_action(start_threshold, 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
+    REQUIRE(jitter.next_action(audio_packet_shape(24000, 16, 1, 200).bytes, 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
 }
 
-TEST_CASE("output jitter buffer drains tail when input is idle")
+TEST_CASE("output jitter enters grace instead of stopping immediately")
 {
     size_t start_threshold = output_jitter_start_bytes();
-    size_t min_play = output_jitter_min_bytes();
-    OutputJitterBuffer jitter(start_threshold, min_play);
+    OutputJitterBuffer jitter(start_threshold, output_jitter_grace_ms());
+    REQUIRE(jitter.next_action(start_threshold, 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
+    REQUIRE(jitter.next_action(0, 960, 20, false) ==
+            OutputPlaybackAction::Hold);
+    REQUIRE(jitter.next_action(0, 960, 480, false) ==
+            OutputPlaybackAction::Hold);
+    REQUIRE(jitter.next_action(0, 960, 20, false) ==
+            OutputPlaybackAction::Silence);
+}
 
-    size_t tail = audio_packet_shape(24000, 16, 1, 200).bytes;
-    REQUIRE_FALSE(jitter.should_play(tail, 960, false));
-    REQUIRE(jitter.should_play(tail, 960, true));
-    REQUIRE(jitter.should_play(min_play, 960, false));
-    REQUIRE_FALSE(jitter.should_play(min_play - 1, 960, false));
+TEST_CASE("output jitter resumes playback when audio arrives during grace")
+{
+    size_t start_threshold = output_jitter_start_bytes();
+    OutputJitterBuffer jitter(start_threshold, output_jitter_grace_ms());
+    REQUIRE(jitter.next_action(start_threshold, 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
+    REQUIRE(jitter.next_action(0, 960, 20, false) ==
+            OutputPlaybackAction::Hold);
+    REQUIRE(jitter.next_action(960, 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
+    REQUIRE(jitter.next_action(960, 960, 20, false) ==
+            OutputPlaybackAction::PlayAudio);
+}
+
+TEST_CASE("output jitter can drain a tail after input idle while priming")
+{
+    size_t start_threshold = output_jitter_start_bytes();
+    OutputJitterBuffer jitter(start_threshold, output_jitter_grace_ms());
+    REQUIRE(jitter.next_action(960, 960, 20, false) ==
+            OutputPlaybackAction::Silence);
+    REQUIRE(jitter.next_action(960, 960, 20, true) ==
+            OutputPlaybackAction::PlayAudio);
 }
 
 TEST_CASE("pcm smoother fades in when audio resumes")

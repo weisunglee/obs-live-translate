@@ -18,28 +18,44 @@ uint64_t audio_packet_duration_ns(size_t frames, uint32_t sample_rate)
 
 size_t output_jitter_start_bytes()
 {
-    return audio_packet_shape(24000, 16, 1, 750).bytes;
+    return audio_packet_shape(24000, 16, 1, 1200).bytes;
 }
 
-size_t output_jitter_min_bytes()
+size_t output_jitter_grace_ms()
 {
-    return audio_packet_shape(24000, 16, 1, 20).bytes;
+    return 500;
 }
 
-bool OutputJitterBuffer::should_play(size_t buffered_bytes, size_t packet_bytes,
-                                     bool input_idle_flush)
+OutputJitterBuffer::OutputJitterBuffer(size_t start_threshold_bytes,
+                                       size_t grace_ms)
+    : start_threshold_bytes_(start_threshold_bytes), grace_ms_(grace_ms)
+{}
+
+OutputPlaybackAction OutputJitterBuffer::next_action(size_t buffered_bytes,
+                                                     size_t packet_bytes,
+                                                     uint32_t elapsed_ms,
+                                                     bool input_idle_flush)
 {
-    if (!active_) {
-        if (buffered_bytes >= start_threshold_bytes_ ||
-            (input_idle_flush && buffered_bytes >= packet_bytes)) {
-            active_ = true;
+    if (buffered_bytes >= packet_bytes) {
+        if (state_ == State::Priming &&
+            buffered_bytes < start_threshold_bytes_ && !input_idle_flush) {
+            return OutputPlaybackAction::Silence;
         }
+        state_ = State::Playing;
+        grace_elapsed_ms_ = 0;
+        return OutputPlaybackAction::PlayAudio;
     }
-    const size_t minimum = min_play_bytes_ > packet_bytes ? min_play_bytes_ : packet_bytes;
-    if (active_ && buffered_bytes < minimum) {
-        active_ = false;
+
+    if (state_ == State::Playing || state_ == State::Grace) {
+        state_ = State::Grace;
+        grace_elapsed_ms_ += elapsed_ms;
+        if (grace_elapsed_ms_ <= grace_ms_)
+            return OutputPlaybackAction::Hold;
     }
-    return active_;
+
+    state_ = State::Priming;
+    grace_elapsed_ms_ = 0;
+    return OutputPlaybackAction::Silence;
 }
 
 void PcmS16MonoSmoother::apply(int16_t *samples, size_t frames, bool has_audio)

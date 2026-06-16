@@ -15,7 +15,7 @@ struct SourceData {
     std::thread thread;
     std::atomic<bool> active{false};
     lt::OutputJitterBuffer jitter{lt::output_jitter_start_bytes(),
-                                  lt::output_jitter_min_bytes()};
+                                  lt::output_jitter_grace_ms()};
     lt::PcmS16MonoSmoother smoother{120};
     bool was_playing = false;
 };
@@ -37,17 +37,19 @@ void emit_loop(SourceData *d)
         lt::TranslationSession &session = lt::TranslationSession::instance();
         size_t buffered = session.output_buffered_bytes();
         bool input_idle_flush = session.input_idle_ms() >= 700;
-        bool playing =
-            d->jitter.should_play(buffered, buf.size(), input_idle_flush);
-        if (playing)
+        lt::OutputPlaybackAction action =
+            d->jitter.next_action(buffered, buf.size(), 20, input_idle_flush);
+        bool has_audio = action == lt::OutputPlaybackAction::PlayAudio;
+        if (has_audio)
             session.pull_output_pcm(buf.data(), buf.size());
+        bool playing = action != lt::OutputPlaybackAction::Silence;
         if (playing != d->was_playing) {
             blog(LOG_INFO, "[live-translate] output %s buffered=%zu",
-                 playing ? "resumed" : "underrun", buffered);
+                 playing ? "resumed" : "stopped", buffered);
             d->was_playing = playing;
         }
         d->smoother.apply(reinterpret_cast<int16_t *>(buf.data()), packet.frames,
-                          playing);
+                          has_audio);
 
         struct obs_source_audio out = {};
         out.data[0] = buf.data();
