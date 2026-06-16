@@ -38,6 +38,7 @@ add_library(${CMAKE_PROJECT_NAME} MODULE
   src/ring-buffer.cpp
   src/live-protocol.cpp
   src/backoff.cpp
+  src/source.cpp
   src/translation-session.cpp
 )
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE

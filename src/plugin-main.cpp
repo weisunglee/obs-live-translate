@@ -1,6 +1,7 @@
 #include <obs-module.h>
 
 extern struct obs_source_info live_translate_filter_info;
+extern struct obs_source_info live_translate_source_info;
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-live-translate", "en-US")
@@ -15,6 +16,7 @@ bool obs_module_load(void)
 {
     blog(LOG_INFO, "[live-translate] module loaded");
     obs_register_source(&live_translate_filter_info);
+    obs_register_source(&live_translate_source_info);
     return true;
 }
 
