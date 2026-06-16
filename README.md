@@ -119,3 +119,8 @@ mbedTLS) · nlohmann/json · Catch2.
 
 Captions/subtitles, multiple simultaneous sessions, encrypted key storage, and
 explicit source-language selection are out of scope.
+
+## License
+
+Licensed under the GNU General Public License v2.0 — see [LICENSE](LICENSE).
+This matches OBS Studio's licensing, since the plugin links against libobs.
