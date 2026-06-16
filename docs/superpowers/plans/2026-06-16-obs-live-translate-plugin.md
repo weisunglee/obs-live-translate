@@ -1,12 +1,67 @@
 # OBS Live Translate Plugin Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For the implementing agent (e.g. Codex on Windows):** Execute the tasks **in order, top to bottom**. Each task is bite-sized; follow its steps exactly. The tasks use test-driven development — write the failing test, run it to confirm it fails, write the minimal implementation, run it to confirm it passes, then commit. Do **not** skip the "run the test" steps: a task is only done when its stated command produces the stated expected output. Steps use checkbox (`- [ ]`) syntax — check them off as you go. Read **"Prerequisites & Environment Setup (Windows)"** below before starting Task 0. If a build/test command cannot run because of a missing prerequisite, stop and report exactly which prerequisite is missing rather than marking the task done.
 
 **Goal:** Build a native Windows OBS plugin that streams an audio source through the Gemini Live API (`gemini-3.5-live-translate-preview`) for real-time speech-to-speech translation and emits the translated audio on a dedicated OBS audio track.
 
 **Architecture:** A single `obs-live-translate.dll` registers an audio **filter** (captures source audio, passes the original through untouched) and a custom audio **source** (emits translated audio). A background `TranslationSession` singleton brokers between them via bounded ring buffers and a dedicated network thread that owns a WebSocket to Gemini. Pure logic (base64, audio chunking, JSON message build/parse, ring buffer, reconnect backoff) is factored into standalone, unit-tested units; OBS and network integration is layered on top.
 
 **Tech Stack:** C++17, CMake (obs-plugintemplate), libobs (OBS 30.x), IXWebSocket (+ mbedTLS), nlohmann/json, Catch2 (unit tests). Windows x64.
+
+---
+
+## Prerequisites & Environment Setup (Windows)
+
+The implementing agent runs on **Windows 10/11 x64**. Install/verify these before Task 0:
+
+| Tool | Version | Notes |
+|---|---|---|
+| Visual Studio 2022 | 17.x, "Desktop development with C++" workload | Provides MSVC + Windows SDK |
+| CMake | ≥ 3.24 | `cmake --version` |
+| Git | any recent | needed for FetchContent (downloads json/IXWebSocket/Catch2) |
+| Internet access | — | FetchContent clones deps at configure time |
+
+**Getting libobs (the only non-trivial step).** `find_package(libobs REQUIRED)` needs OBS's exported CMake package (`libobsConfig.cmake`). Two supported routes:
+
+- **Route A (recommended) — base the project on the official plugin template.**
+  The template automates downloading prebuilt OBS dependencies and libobs on
+  Windows via CMake presets:
+  1. `git clone https://github.com/obsproject/obs-plugintemplate` into a scratch dir.
+  2. Copy its `cmake/`, `.cmake-format.json`, and CMake preset files
+     (`CMakePresets.json`, `buildspec.json`) into this repo.
+  3. Configure with the Windows preset:
+     `cmake --preset windows-x64`
+     This fetches libobs so `find_package(libobs)` resolves. Then build with
+     `cmake --build --preset windows-x64`.
+  Merge the `add_library`/`target_link_libraries` content from this plan's
+  `CMakeLists.txt` into the template's plugin target.
+
+- **Route B — point CMake at an existing libobs install.**
+  If a built OBS Studio (or its dev package) is available, set
+  `-DCMAKE_PREFIX_PATH=<path-to-obs-install>` (the directory containing
+  `lib/cmake/libobs/libobsConfig.cmake`) when configuring.
+
+**Build/test commands used throughout this plan** (Route B style; adjust to the
+preset if using Route A):
+```bash
+# configure (tests on; libobs located via CMAKE_PREFIX_PATH)
+cmake -B build -DCMAKE_PREFIX_PATH=<path-to-obs-install>
+# build the plugin
+cmake --build build --config RelWithDebInfo
+# build + run unit tests (no libobs needed for the test target)
+cmake --build build --target unit-tests
+ctest --test-dir build --output-on-failure
+```
+
+> The **unit test target (`unit-tests`) does not depend on libobs** — only on
+> Catch2 + nlohmann/json (both via FetchContent). It builds and runs even
+> before libobs is set up, so Tasks 2–6 can be verified independently of the
+> OBS toolchain.
+
+**Working branch.** Do all implementation on a feature branch (`feature/implementation`), not on `main`. Commit after every task as the steps instruct.
+
+**API key for the integration harness (Task 10).** A valid Gemini API key and a
+16 kHz mono 16-bit PCM WAV file are required only for the manual integration run.
 
 ---
 
