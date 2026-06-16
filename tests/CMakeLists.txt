@@ -7,14 +7,16 @@ add_executable(unit-tests
   test-main.cpp
   test-audio-convert.cpp
   test-base64.cpp
+  test-live-protocol.cpp
   test-ring-buffer.cpp
   test-smoke.cpp
   ${CMAKE_SOURCE_DIR}/src/audio-convert.cpp
   ${CMAKE_SOURCE_DIR}/src/base64.cpp
+  ${CMAKE_SOURCE_DIR}/src/live-protocol.cpp
   ${CMAKE_SOURCE_DIR}/src/ring-buffer.cpp
 )
 target_include_directories(unit-tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(unit-tests PRIVATE Catch2::Catch2)
+target_link_libraries(unit-tests PRIVATE Catch2::Catch2 nlohmann_json::nlohmann_json)
 
 include(CTest)
 include(Catch)
