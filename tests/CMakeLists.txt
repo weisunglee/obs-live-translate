@@ -5,7 +5,9 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(unit-tests
   test-main.cpp
+  test-base64.cpp
   test-smoke.cpp
+  ${CMAKE_SOURCE_DIR}/src/base64.cpp
 )
 target_include_directories(unit-tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(unit-tests PRIVATE Catch2::Catch2)
