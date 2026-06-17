@@ -154,7 +154,7 @@ src/
   backoff.*              exponential reconnect backoff
   base64.*, languages.hpp
 tests/                   Catch2 unit tests (one per pure module)
-docs/superpowers/        design specs + implementation plans
+installer/               Inno Setup script for the Windows installer
 cmake/, CMakePresets.json, buildspec.json
 ```
 

@@ -7,10 +7,8 @@ translation via the Google Gemini Live API (`gemini-3.5-live-translate-preview`)
 A microphone's audio is streamed to Gemini and the translated audio is emitted
 as a separate OBS audio source that can live on its own track.
 
-**The plugin is implemented.** The original 12-task build plan (Task 0 → 11) and
-two follow-up plans (smooth playback, then the event-driven push-output rewrite)
-are complete and merged. See `README.md` for the architecture and `docs/` for the
-specs/plans. Your job now is **maintenance and incremental changes**, not a
+**The plugin is implemented and released.** See `README.md` for the architecture
+and behavior. Your job now is **maintenance and incremental changes**, not a
 green-field build.
 
 ## Build / test / deploy (Windows x64)
