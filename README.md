@@ -85,6 +85,21 @@ OBS, and extract the `obs-plugins` folder into your OBS Studio install directory
 `obs-plugins\64bit\obs-live-translate.dll`. The build is unsigned, so Windows
 SmartScreen / antivirus may warn on first run.
 
+## Usage
+
+1. Add the **Gemini Live Translate** filter to your microphone source
+   (right-click the mic → *Filters* → **+** → *Gemini Live Translate*). Paste your
+   API key, pick a target language, and leave **echo** on. Once it connects the
+   status reads *Connected*.
+
+   ![Gemini Live Translate filter properties](screenshots/micro-filters.png)
+
+2. Add a **Gemini Translated Audio** source to your scene (Sources → **+** →
+   *Gemini Translated Audio*). This plays the translated voice; route it to its
+   own track in *Advanced Audio Properties* to keep it separate from your mic.
+
+   ![Gemini Translated Audio source](screenshots/audio-source.png)
+
 ## Build (Windows x64)
 
 Requires Visual Studio 2022, CMake ≥ 3.28, and libobs (OBS 31.x). Dependencies
