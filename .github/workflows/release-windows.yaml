@@ -56,8 +56,22 @@ jobs:
           Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
           "ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $ver = $env:GITHUB_REF_NAME -replace '^v', ''
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=$ver" "installer\obs-live-translate.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+          $exe = Get-ChildItem "installer/Output/*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "installer .exe not produced" }
+          "INSTALLER=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$env:GITHUB_REF_NAME" "$env:ZIP" --title "$env:GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$env:GITHUB_REF_NAME" "$env:ZIP" "$env:INSTALLER" --title "$env:GITHUB_REF_NAME" --generate-notes
