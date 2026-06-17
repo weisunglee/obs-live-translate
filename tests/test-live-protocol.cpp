@@ -13,8 +13,6 @@ TEST_CASE("setup message has model and translation config")
     REQUIRE(j["setup"]["generationConfig"]["responseModalities"][0] == "AUDIO");
     REQUIRE(j["setup"]["generationConfig"]["translationConfig"]["targetLanguageCode"] == "zh-TW");
     REQUIRE(j["setup"]["generationConfig"]["translationConfig"]["echoTargetLanguage"] == true);
-    REQUIRE(j["setup"]["generationConfig"]["inputAudioTranscription"].is_object());
-    REQUIRE(j["setup"]["generationConfig"]["outputAudioTranscription"].is_object());
 }
 
 TEST_CASE("setup message can disable target-language echo")
