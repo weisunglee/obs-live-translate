@@ -79,12 +79,13 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
         d->resampler, out, &out_frames, &ts_offset,
         (const uint8_t *const *)audio->data, audio->frames);
     if (ok && out_frames > 0) {
+        // Send the audio continuously, including silence, the way the official
+        // Live API client streams the mic. Gating out silence made our input
+        // stream discontinuous, which disrupts the model's real-time VAD/turn
+        // handling and delays translation output until the next speech resumes.
         auto chunks = d->chunker.push(out[0], out_frames * 2);
-        for (auto &c : chunks) {
-            bool has_signal = lt::s16le_has_signal(c.data(), c.size(), 250.0);
-            if (!d->gate.should_send(has_signal)) continue;
+        for (auto &c : chunks)
             lt::TranslationSession::instance().push_input_pcm(c.data(), c.size());
-        }
     }
     return audio;
 }
