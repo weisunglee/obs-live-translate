@@ -10,9 +10,14 @@ std::string build_setup_message(const std::string &target, bool echo)
 {
     json j;
     j["setup"]["model"] = "models/gemini-3.5-live-translate-preview";
-    j["setup"]["generationConfig"]["responseModalities"] = json::array({"AUDIO"});
-    j["setup"]["generationConfig"]["translationConfig"]["targetLanguageCode"] = target;
-    j["setup"]["generationConfig"]["translationConfig"]["echoTargetLanguage"] = echo;
+    auto &gc = j["setup"]["generationConfig"];
+    gc["responseModalities"] = json::array({"AUDIO"});
+    // Match the documented canonical setup message: the reference includes
+    // empty input/output transcription objects alongside translationConfig.
+    gc["inputAudioTranscription"] = json::object();
+    gc["outputAudioTranscription"] = json::object();
+    gc["translationConfig"]["targetLanguageCode"] = target;
+    gc["translationConfig"]["echoTargetLanguage"] = echo;
     return j.dump();
 }
 
