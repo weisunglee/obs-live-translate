@@ -18,8 +18,11 @@ struct LangEntry {
 static const LangEntry kLanguages[] = {
     // Common (pinned to the top of the dropdown)
     {"en", "英文"},
-    {"zh-Hant", "繁體中文"},
-    {"zh-Hans", "簡體中文"},
+    // Speech-to-speech output has no script, so a single script-less "zh" is
+    // used: zh-Hant / zh-Hans sound identical and break same-language echo
+    // (the model doesn't treat spoken Mandarin as an exact match for a
+    // script-tagged target), whereas "zh" echoes and translates correctly.
+    {"zh", "中文"},
     {"ja", "日文"},
     {"ko", "韓文"},
     {"es", "西班牙文"},
