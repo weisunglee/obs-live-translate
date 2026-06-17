@@ -40,6 +40,7 @@ private:
     std::mutex output_wait_mtx_;
     std::atomic<bool> interrupted_{false};
     std::atomic<uint64_t> last_input_ms_{0};
+    std::atomic<uint64_t> last_audio_ms_{0};  // diag: translated-audio arrival
 
     std::mutex cfg_mtx_;
     std::string api_key_;

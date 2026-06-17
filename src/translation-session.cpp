@@ -188,8 +188,17 @@ void TranslationSession::run()
                     signal_interrupt();
                 }
                 if (m.kind == ServerMessage::Kind::Audio && !m.audio.empty()) {
-                    blog(LOG_DEBUG, "[live-translate] received audio bytes: %zu",
-                         m.audio.size());
+                    // diag: log inter-arrival gap so a perceived ending-cut can
+                    // be classified as a model PAUSE (gap then more audio →
+                    // recoverable) vs the model STOPPING (no further audio →
+                    // model omitted the ending, not fixable in the plugin).
+                    uint64_t now = now_ms();
+                    uint64_t last =
+                        last_audio_ms_.exchange(now, std::memory_order_relaxed);
+                    uint64_t gap = (last == 0 || now < last) ? 0 : now - last;
+                    blog(LOG_INFO,
+                         "[live-translate][diag] audio bytes=%zu gap=%llums",
+                         m.audio.size(), (unsigned long long)gap);
                     append_output(m.audio.data(), m.audio.size());
                 } else if (m.kind == ServerMessage::Kind::Error) {
                     blog(LOG_ERROR, "[live-translate] server error: %s",
