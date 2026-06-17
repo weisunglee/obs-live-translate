@@ -29,6 +29,12 @@ FetchContent_Declare(ixwebsocket
   GIT_TAG v11.4.5)
 FetchContent_MakeAvailable(ixwebsocket)
 set_target_properties(ixwebsocket PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
+# COMPILE_WARNING_AS_ERROR doesn't override the Xcode/template-level -Werror, so
+# explicitly stop the third-party IXWebSocket sources from failing the build on
+# their own warnings (e.g. -Wnewline-eof on macOS clang).
+if(NOT MSVC)
+  target_compile_options(ixwebsocket PRIVATE -Wno-error)
+endif()
 
 add_library(${CMAKE_PROJECT_NAME} MODULE
   src/plugin-main.cpp

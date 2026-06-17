@@ -85,7 +85,7 @@ jobs:
         run: |
           sudo add-apt-repository --yes ppa:obsproject/obs-studio
           sudo apt-get update
-          sudo apt-get install -y obs-studio libsimde-dev cmake ninja-build pkg-config ccache
+          sudo apt-get install -y obs-studio libsimde-dev libmbedtls-dev cmake ninja-build pkg-config ccache
       - name: Configure
         run: cmake --preset ubuntu-x86_64
       - name: Build
