@@ -157,11 +157,12 @@ mbedTLS) · nlohmann/json · Catch2.
 The **target language** dropdown offers the languages
 `gemini-3.5-live-translate-preview` supports (from the
 [official Live Translate docs](https://ai.google.dev/gemini-api/docs/live-api/live-translate)),
-labelled in Traditional Chinese. Common languages — English, Chinese, Japanese,
-Korean, Spanish, French, German, Portuguese (BR), Italian, Russian, Indonesian,
-Thai, Vietnamese — are pinned to the top; the rest follow in English-name
-alphabetical order. The exact list and BCP-47 codes live in
-[`src/languages.hpp`](src/languages.hpp).
+each labelled with its native name plus the English name (e.g. `日本語
+(Japanese)`) so both native speakers and others can recognize it. Common
+languages — English, Chinese, Japanese, Korean, Spanish, French, German,
+Portuguese (BR), Italian, Russian, Indonesian, Thai, Vietnamese — are pinned to
+the top; the rest follow in English-name alphabetical order. The exact list and
+BCP-47 codes live in [`src/languages.hpp`](src/languages.hpp).
 
 Chinese uses the script-less code **`zh`**, not `zh-Hant` / `zh-Hans`. Output is
 speech, which has no script, so the script-specific codes sound identical — and
