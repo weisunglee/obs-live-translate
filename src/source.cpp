@@ -49,6 +49,14 @@ void push_loop(SourceData *d)
 
         uint64_t now = os_gettime_ns();
         uint64_t ts = d->timestamper.next_timestamp(now, frames);
+        // diag: backlog = audio buffered in our ring but not yet pushed; lead =
+        // how far ahead of the wall clock this push is scheduled. If backlog
+        // grows to seconds, the delay is OUR pipeline holding data, not the
+        // model; if it stays small, the lag is upstream (arrival side).
+        uint64_t backlog_ms = session.output_backlog_bytes() / 48;
+        uint64_t lead_ms = ts > now ? (ts - now) / 1000000ULL : 0;
+        blog(LOG_INFO, "[live-translate][out] backlog=%llums lead=%llums",
+             (unsigned long long)backlog_ms, (unsigned long long)lead_ms);
         // Pace emission so we never schedule audio further than kMaxLeadNs ahead
         // of the wall clock. Without this the scheduling lead, established during
         // the model's initial burst, never drains (the stream has no gaps) and a

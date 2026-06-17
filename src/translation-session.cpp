@@ -124,6 +124,11 @@ void TranslationSession::signal_interrupt()
     output_cv_.notify_one();
 }
 
+size_t TranslationSession::output_backlog_bytes()
+{
+    return output_.size();
+}
+
 size_t TranslationSession::wait_and_read_output(uint8_t *out, size_t max_len,
                                                 uint32_t timeout_ms)
 {

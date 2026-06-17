@@ -22,6 +22,7 @@ public:
     void append_output(const uint8_t *data, size_t len);
     void signal_interrupt();
     size_t wait_and_read_output(uint8_t *out, size_t max_len, uint32_t timeout_ms);
+    size_t output_backlog_bytes();  // diag: bytes buffered but not yet pushed
     bool take_interrupted();
     uint64_t input_idle_ms();
 
