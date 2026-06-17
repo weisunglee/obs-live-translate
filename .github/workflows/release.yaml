@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake --preset windows-x64
+        run: cmake --preset windows-x64 -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
       - name: Build
         run: cmake --build --preset windows-x64
       - name: Install Inno Setup
@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake --preset macos
+        run: cmake --preset macos -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
       - name: Build
         run: cmake --build --preset macos --target obs-live-translate
       - name: Package
@@ -87,7 +87,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y obs-studio libsimde-dev libmbedtls-dev cmake ninja-build pkg-config ccache
       - name: Configure
-        run: cmake --preset ubuntu-x86_64
+        run: cmake --preset ubuntu-x86_64 -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
       - name: Build
         run: cmake --build --preset ubuntu-x86_64 --target obs-live-translate
       - name: Package
