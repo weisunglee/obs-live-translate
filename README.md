@@ -115,6 +115,20 @@ mbedTLS) · nlohmann/json · Catch2.
   `echoTargetLanguage`; there is **no source-language parameter** — the model
   auto-detects the spoken language.
 
+## Supported languages
+
+The **target language** dropdown offers all **78 languages** that
+`gemini-3.5-live-translate-preview` supports (the full set from the
+[official Live Translate docs](https://ai.google.dev/gemini-api/docs/live-api/live-translate)),
+labelled in Traditional Chinese. Common languages — English, Traditional /
+Simplified Chinese, Japanese, Korean, Spanish, French, German, Portuguese (BR),
+Italian, Russian, Indonesian, Thai, Vietnamese — are pinned to the top; the rest
+follow in English-name alphabetical order. The exact list and BCP-47 codes live
+in [`src/languages.hpp`](src/languages.hpp).
+
+There is **no source-language selection** — Gemini auto-detects the spoken
+language, so you only pick what to translate *into*.
+
 ## Non-goals (v1)
 
 Captions/subtitles, multiple simultaneous sessions, encrypted key storage, and
