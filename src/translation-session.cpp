@@ -1,4 +1,5 @@
 #include "translation-session.hpp"
+#include "audio-convert.hpp"
 #include "backoff.hpp"
 #include "live-protocol.hpp"
 #include <ixwebsocket/IXWebSocket.h>
@@ -196,9 +197,13 @@ void TranslationSession::run()
                     uint64_t last =
                         last_audio_ms_.exchange(now, std::memory_order_relaxed);
                     uint64_t gap = (last == 0 || now < last) ? 0 : now - last;
+                    // rms distinguishes silence the model emits during a pause
+                    // (rms~0) from real translated speech, so we can tell whether
+                    // the model is withholding a segment vs just lagging.
+                    double rms = s16le_rms(m.audio.data(), m.audio.size());
                     blog(LOG_INFO,
-                         "[live-translate][diag] audio bytes=%zu gap=%llums",
-                         m.audio.size(), (unsigned long long)gap);
+                         "[live-translate][diag] audio bytes=%zu gap=%llums rms=%.0f",
+                         m.audio.size(), (unsigned long long)gap, rms);
                     append_output(m.audio.data(), m.audio.size());
                 } else if (m.kind == ServerMessage::Kind::Error) {
                     blog(LOG_ERROR, "[live-translate] server error: %s",
