@@ -12,12 +12,14 @@ namespace {
 constexpr uint32_t kOutputSampleRate = 24000;
 constexpr size_t kDrainCapBytes = 9600;        // 200 ms of 24 kHz mono S16
 constexpr uint32_t kWaitTimeoutMs = 100;
-// Scheduling lead cap. The model delivers audio in bursts and pauses ~300 ms at
-// phrase boundaries; buffering ~400 ms ahead lets OBS play through those pauses
-// so sentence endings (critical in zh/ja) aren't dropped at boundaries. Bounded,
+// Scheduling lead cap. Diagnostics showed the model delivers audio every ~250 ms
+// and pauses up to ~600 ms at phrase boundaries (never longer). Buffering 600 ms
+// ahead lets OBS play through those pauses so live playback stays continuous
+// instead of stuttering at every boundary. For one-way live streaming the only
+// cost is a little more end-to-end latency, which is irrelevant. (The tail-on-stop
+// truncation this enlarges only affects recordings, not live streams.) Bounded,
 // so the lead can't grow unboundedly the way the original (uncapped) lead did.
-// Trade-off: stopping a recording can truncate up to this much of the final tail.
-constexpr uint64_t kMaxLeadNs = 400000000ULL;  // 400 ms scheduling lead cap
+constexpr uint64_t kMaxLeadNs = 600000000ULL;  // 600 ms scheduling lead cap
 
 struct SourceData {
     obs_source_t *context = nullptr;
