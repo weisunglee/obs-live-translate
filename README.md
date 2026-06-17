@@ -1,4 +1,4 @@
-# OBS Live Translate
+# Gemini Live Translate for OBS
 
 A native OBS Studio plugin (**Windows · macOS · Linux**) that does real-time
 **speech-to-speech** translation using the Google **Gemini Live API**
@@ -6,6 +6,10 @@ A native OBS Studio plugin (**Windows · macOS · Linux**) that does real-time
 it to Gemini, and plays the translated speech back as a separate OBS audio
 source you can route to its own track — so a stream/recording can carry both the
 original voice and a live translation.
+
+> This plugin was built with significant assistance from AI (Claude). It is an
+> independent project and is not affiliated with or endorsed by the OBS Project
+> or Google. Bug reports and contributions are welcome.
 
 ## How it works
 
