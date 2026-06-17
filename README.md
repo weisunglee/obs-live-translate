@@ -76,6 +76,15 @@ Implemented and building/testing on Windows x64. Current behavior:
   the still-in-flight translation of your last words is cut; **live streams** are
   unaffected. See the notes in `docs/`.
 
+## Install (prebuilt)
+
+Grab the latest `obs-live-translate-*-windows-x64.zip` from the
+[Releases](https://github.com/weisunglee/obs-live-translate/releases) page, close
+OBS, and extract the `obs-plugins` folder into your OBS Studio install directory
+(e.g. `C:\Program Files\obs-studio\`) so the DLL lands at
+`obs-plugins\64bit\obs-live-translate.dll`. The build is unsigned, so Windows
+SmartScreen / antivirus may warn on first run.
+
 ## Build (Windows x64)
 
 Requires Visual Studio 2022, CMake ≥ 3.28, and libobs (OBS 31.x). Dependencies
@@ -115,12 +124,12 @@ audio conversion, audio pacing/timestamper, Gemini protocol parsing) and does
 ```
 src/
   plugin-main.cpp        module entry; registers the filter + source
-  filter.cpp             mic filter: resample → voice-gate → chunk → stream
+  filter.cpp             mic filter: resample → chunk → stream (continuous)
   source.cpp             translated-audio source: event-driven push loop
   translation-session.*  shared WebSocket session + audio buffers + reconnect
   live-protocol.*        build/parse Gemini Live API messages
   audio-pacing.*         OutputTimestamper (contiguous, lead-bounded timestamps)
-  audio-convert.*        PCM conversion / chunking / voice gate
+  audio-convert.*        PCM downmix / conversion / chunking
   ring-buffer.*          bounded byte ring buffer
   backoff.*              exponential reconnect backoff
   base64.*, languages.hpp
