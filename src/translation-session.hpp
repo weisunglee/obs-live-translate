@@ -14,7 +14,8 @@ class TranslationSession {
 public:
     static TranslationSession &instance();
 
-    void configure(const std::string &api_key, const std::string &target_lang);
+    void configure(const std::string &api_key, const std::string &target_lang,
+                   bool echo_target);
     void stop();
 
     void push_input_pcm(const uint8_t *data, size_t len);
@@ -43,6 +44,7 @@ private:
     std::mutex cfg_mtx_;
     std::string api_key_;
     std::string target_lang_;
+    bool echo_target_ = true;
 
     std::atomic<bool> running_{false};
     std::atomic<bool> config_changed_{false};

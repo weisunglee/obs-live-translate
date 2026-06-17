@@ -14,6 +14,7 @@ struct FilterData {
     lt::VoiceGate gate{lt::voice_gate_tail_chunks(500, 100)};
     std::string api_key;
     std::string target_lang = "en";
+    bool echo_target = true;
 };
 
 const char *filter_get_name(void *)
@@ -45,7 +46,9 @@ void filter_update(void *data, obs_data_t *settings)
     auto *d = static_cast<FilterData *>(data);
     d->api_key = obs_data_get_string(settings, "api_key");
     d->target_lang = obs_data_get_string(settings, "target_lang");
-    lt::TranslationSession::instance().configure(d->api_key, d->target_lang);
+    d->echo_target = obs_data_get_bool(settings, "echo_target");
+    lt::TranslationSession::instance().configure(d->api_key, d->target_lang,
+                                                 d->echo_target);
 }
 
 void *filter_create(obs_data_t *settings, obs_source_t *source)
@@ -96,6 +99,11 @@ obs_properties_t *filter_properties(void *)
         obs_property_list_add_string(list, lt::kLanguages[i].name,
                                      lt::kLanguages[i].code);
 
+    obs_properties_add_bool(
+        props, "echo_target",
+        obs_module_text("Output speech even when it is already in the target "
+                        "language (otherwise stays silent)"));
+
     obs_properties_add_text(props, "api_key", obs_module_text("Gemini API Key"),
                             OBS_TEXT_PASSWORD);
     obs_properties_add_text(
@@ -112,6 +120,7 @@ obs_properties_t *filter_properties(void *)
 void filter_defaults(obs_data_t *settings)
 {
     obs_data_set_default_string(settings, "target_lang", "en");
+    obs_data_set_default_bool(settings, "echo_target", true);
 }
 
 void filter_get_status(void *, obs_data_t *settings)

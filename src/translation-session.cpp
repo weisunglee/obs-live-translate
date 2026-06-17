@@ -60,20 +60,24 @@ std::string TranslationSession::status_text()
 }
 
 void TranslationSession::configure(const std::string &api_key,
-                                   const std::string &target_lang)
+                                   const std::string &target_lang,
+                                   bool echo_target)
 {
     {
         std::lock_guard<std::mutex> lk(cfg_mtx_);
         api_key_ = api_key;
         target_lang_ = target_lang;
+        echo_target_ = echo_target;
     }
     if (api_key.empty()) {
         blog(LOG_INFO, "[live-translate] API key cleared; stopping session");
         stop();
         return;
     }
-    blog(LOG_INFO, "[live-translate] configuring session: target=%s api_key=%s",
-         target_lang.c_str(), api_key.empty() ? "empty" : "set");
+    blog(LOG_INFO,
+         "[live-translate] configuring session: target=%s echo=%s api_key=%s",
+         target_lang.c_str(), echo_target ? "on" : "off",
+         api_key.empty() ? "empty" : "set");
     config_changed_ = true;
     if (!running_.exchange(true)) {
         // A previous run() may have exited on its own (e.g. auth error) and left
@@ -149,10 +153,12 @@ void TranslationSession::run()
 
     while (running_) {
         std::string key, lang;
+        bool echo;
         {
             std::lock_guard<std::mutex> lk(cfg_mtx_);
             key = api_key_;
             lang = target_lang_;
+            echo = echo_target_;
         }
         config_changed_ = false;
 
@@ -169,7 +175,7 @@ void TranslationSession::run()
         ws.setOnMessageCallback([&](const ix::WebSocketMessagePtr &msg) {
             if (msg->type == ix::WebSocketMessageType::Open) {
                 open = true;
-                std::string setup = build_setup_message(lang, false);
+                std::string setup = build_setup_message(lang, echo);
                 ws.send(setup);
                 blog(LOG_INFO, "[live-translate] websocket opened; setup sent");
                 set_status(ConnStatus::Connected);
