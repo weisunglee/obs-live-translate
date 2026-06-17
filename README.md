@@ -38,6 +38,26 @@ every received PCM chunk to OBS with contiguous, duration-spaced timestamps,
 paced so the scheduling lead stays bounded (~600 ms, enough to ride out the
 model's phrase-boundary delivery jitter) — the OBS mixer is the clock.
 
+## Getting a Gemini API key
+
+The plugin needs a Google **Gemini API key**:
+
+1. Sign in to **Google AI Studio** at <https://aistudio.google.com/apikey> with
+   a Google account.
+2. New users: AI Studio creates a default Google Cloud project and key
+   automatically once you accept the Terms of Service. Otherwise click
+   **Create API key**.
+3. Copy the key and paste it into the **Gemini API Key** field of the *Gemini
+   Live Translate* filter.
+
+Notes:
+
+- The key is stored **in plaintext** in your scene-collection file — don't share
+  that file.
+- `gemini-3.5-live-translate-preview` usage is billed per Google's pricing;
+  check current quotas and pricing in AI Studio
+  ([pricing](https://ai.google.dev/gemini-api/docs/pricing)).
+
 ## Status
 
 Implemented and building/testing on Windows x64. Current behavior:
