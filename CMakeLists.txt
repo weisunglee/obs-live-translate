@@ -37,17 +37,6 @@ set_target_properties(ixwebsocket PROPERTIES
 if(NOT MSVC)
   target_compile_options(ixwebsocket PRIVATE -Wno-error)
 endif()
-# IXWebSocket v11.4.5 leaks a Windows-only "bcrypt" link dependency; drop it on
-# platforms where that library does not exist.
-if(NOT WIN32)
-  foreach(_prop INTERFACE_LINK_LIBRARIES LINK_LIBRARIES)
-    get_target_property(_ixws_libs ixwebsocket ${_prop})
-    if(_ixws_libs)
-      list(FILTER _ixws_libs EXCLUDE REGEX "bcrypt")
-      set_target_properties(ixwebsocket PROPERTIES ${_prop} "${_ixws_libs}")
-    endif()
-  endforeach()
-endif()
 
 add_library(${CMAKE_PROJECT_NAME} MODULE
   src/plugin-main.cpp
@@ -65,7 +54,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
   OBS::libobs
   ixwebsocket
   nlohmann_json::nlohmann_json
-  bcrypt
+  # bcrypt is a Windows crypto library needed by mbedTLS there; not on mac/Linux.
+  $<$<PLATFORM_ID:Windows>:bcrypt>
 )
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 
