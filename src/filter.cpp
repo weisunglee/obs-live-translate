@@ -45,7 +45,14 @@ void filter_update(void *data, obs_data_t *settings)
 {
     auto *d = static_cast<FilterData *>(data);
     d->api_key = obs_data_get_string(settings, "api_key");
-    d->target_lang = obs_data_get_string(settings, "target_lang");
+    // A non-empty custom code overrides the dropdown, letting users try any
+    // BCP-47 value (e.g. "zh") the dropdown doesn't list.
+    std::string custom = obs_data_get_string(settings, "lang_override");
+    auto b = custom.find_first_not_of(" \t");
+    auto e = custom.find_last_not_of(" \t");
+    custom = (b == std::string::npos) ? "" : custom.substr(b, e - b + 1);
+    d->target_lang =
+        custom.empty() ? obs_data_get_string(settings, "target_lang") : custom;
     d->echo_target = obs_data_get_bool(settings, "echo_target");
     lt::TranslationSession::instance().configure(d->api_key, d->target_lang,
                                                  d->echo_target);
@@ -98,6 +105,12 @@ obs_properties_t *filter_properties(void *)
     for (int i = 0; i < lt::kLanguagesCount; ++i)
         obs_property_list_add_string(list, lt::kLanguages[i].name,
                                      lt::kLanguages[i].code);
+
+    obs_properties_add_text(
+        props, "lang_override",
+        obs_module_text("Custom language code (BCP-47, e.g. zh) — overrides the "
+                        "dropdown above when set"),
+        OBS_TEXT_DEFAULT);
 
     obs_properties_add_bool(
         props, "echo_target",
