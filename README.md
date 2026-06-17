@@ -12,9 +12,11 @@ original voice and a live translation.
 The plugin registers two OBS sources:
 
 1. **Gemini Live Translate** *(audio filter)* — add it to your microphone source.
-   It resamples the mic to 16 kHz mono 16-bit PCM, voice-gates and chunks the
-   audio (100 ms / 3200-byte chunks), and streams it to Gemini over a TLS
-   WebSocket. Configure your **API key** and **target language** in its
+   It resamples the mic to 16 kHz mono 16-bit PCM, chunks it (100 ms /
+   3200-byte chunks), and streams it **continuously** to Gemini over a TLS
+   WebSocket — including the silence during pauses, which the model relies on to
+   detect when an utterance ends and emit its translation promptly. Configure
+   your **API key**, **target language**, and the **echo** option in its
    properties.
 
 2. **Gemini Translated Audio** *(audio source)* — add it to your scene on its own
@@ -33,20 +35,26 @@ mic ─▶ [Gemini Live Translate filter]
 A single shared `TranslationSession` owns the WebSocket connection (with
 reconnect/backoff) and the input/output audio buffers. The output path pushes
 every received PCM chunk to OBS with contiguous, duration-spaced timestamps,
-paced so the scheduling lead stays bounded (~100 ms) — the OBS mixer is the
-clock.
+paced so the scheduling lead stays bounded (~600 ms, enough to ride out the
+model's phrase-boundary delivery jitter) — the OBS mixer is the clock.
 
 ## Status
 
 Implemented and building/testing on Windows x64. Current behavior:
 
-- ✅ Mic → Gemini streaming, translated audio played back via the OBS mixer.
+- ✅ Mic → Gemini streaming (continuous, including pause silence), translated
+  audio played back via the OBS mixer.
 - ✅ Reconnect with exponential backoff; live API-key / target-language changes.
-- ✅ Event-driven push output with a bounded scheduling lead (low latency, tail
-  truncation minimized).
-- ⚠️ Brief pauses at phrase/sentence boundaries come from the translation
-  model's own cadence (the model pauses then emits the final words); the plugin
-  delivers the stream faithfully. See the notes in `docs/`.
+- ✅ Event-driven push output with a bounded scheduling lead (~600 ms) to ride
+  out the model's phrase-boundary delivery jitter.
+- ✅ Optional **echo** toggle (default on): output speech even when it is already
+  in the target language. With it off, input already in the target language
+  stays silent.
+- ⚠️ The translation trails live speech by a few seconds — this is the model's
+  own processing latency, not a plugin delay (measured: our output buffer holds
+  <50 ms). For **recordings**, stop a few seconds after you finish speaking, or
+  the still-in-flight translation of your last words is cut; **live streams** are
+  unaffected. See the notes in `docs/`.
 
 ## Build (Windows x64)
 
@@ -117,14 +125,20 @@ mbedTLS) · nlohmann/json · Catch2.
 
 ## Supported languages
 
-The **target language** dropdown offers all **78 languages** that
-`gemini-3.5-live-translate-preview` supports (the full set from the
+The **target language** dropdown offers the languages
+`gemini-3.5-live-translate-preview` supports (from the
 [official Live Translate docs](https://ai.google.dev/gemini-api/docs/live-api/live-translate)),
-labelled in Traditional Chinese. Common languages — English, Traditional /
-Simplified Chinese, Japanese, Korean, Spanish, French, German, Portuguese (BR),
-Italian, Russian, Indonesian, Thai, Vietnamese — are pinned to the top; the rest
-follow in English-name alphabetical order. The exact list and BCP-47 codes live
-in [`src/languages.hpp`](src/languages.hpp).
+labelled in Traditional Chinese. Common languages — English, Chinese, Japanese,
+Korean, Spanish, French, German, Portuguese (BR), Italian, Russian, Indonesian,
+Thai, Vietnamese — are pinned to the top; the rest follow in English-name
+alphabetical order. The exact list and BCP-47 codes live in
+[`src/languages.hpp`](src/languages.hpp).
+
+Chinese uses the script-less code **`zh`**, not `zh-Hant` / `zh-Hans`. Output is
+speech, which has no script, so the script-specific codes sound identical — and
+they break same-language echo (the model doesn't treat spoken Mandarin as an
+exact match for a script-tagged target), whereas `zh` translates and echoes
+correctly.
 
 There is **no source-language selection** — Gemini auto-detects the spoken
 language, so you only pick what to translate *into*.

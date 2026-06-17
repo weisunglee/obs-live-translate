@@ -1,5 +1,4 @@
 #include "translation-session.hpp"
-#include "audio-convert.hpp"
 #include "backoff.hpp"
 #include "live-protocol.hpp"
 #include <ixwebsocket/IXWebSocket.h>
@@ -124,11 +123,6 @@ void TranslationSession::signal_interrupt()
     output_cv_.notify_one();
 }
 
-size_t TranslationSession::output_backlog_bytes()
-{
-    return output_.size();
-}
-
 size_t TranslationSession::wait_and_read_output(uint8_t *out, size_t max_len,
                                                 uint32_t timeout_ms)
 {
@@ -194,21 +188,8 @@ void TranslationSession::run()
                     signal_interrupt();
                 }
                 if (m.kind == ServerMessage::Kind::Audio && !m.audio.empty()) {
-                    // diag: log inter-arrival gap so a perceived ending-cut can
-                    // be classified as a model PAUSE (gap then more audio →
-                    // recoverable) vs the model STOPPING (no further audio →
-                    // model omitted the ending, not fixable in the plugin).
-                    uint64_t now = now_ms();
-                    uint64_t last =
-                        last_audio_ms_.exchange(now, std::memory_order_relaxed);
-                    uint64_t gap = (last == 0 || now < last) ? 0 : now - last;
-                    // rms distinguishes silence the model emits during a pause
-                    // (rms~0) from real translated speech, so we can tell whether
-                    // the model is withholding a segment vs just lagging.
-                    double rms = s16le_rms(m.audio.data(), m.audio.size());
-                    blog(LOG_INFO,
-                         "[live-translate][diag] audio bytes=%zu gap=%llums rms=%.0f",
-                         m.audio.size(), (unsigned long long)gap, rms);
+                    blog(LOG_DEBUG, "[live-translate] received audio bytes: %zu",
+                         m.audio.size());
                     append_output(m.audio.data(), m.audio.size());
                 } else if (m.kind == ServerMessage::Kind::Error) {
                     blog(LOG_ERROR, "[live-translate] server error: %s",
