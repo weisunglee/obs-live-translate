@@ -60,7 +60,9 @@ Notes:
 
 ## Status
 
-Implemented and building/testing on Windows x64. Current behavior:
+Released for Windows x64 — grab a prebuilt installer or zip from the
+[Releases](https://github.com/weisunglee/obs-live-translate/releases) page.
+Current behavior:
 
 - ✅ Mic → Gemini streaming (continuous, including pause silence), translated
   audio played back via the OBS mixer.
