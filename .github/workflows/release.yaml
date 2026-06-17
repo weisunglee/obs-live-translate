@@ -46,7 +46,7 @@ jobs:
 
   macos:
     name: Build macOS (universal)
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       CODESIGN_IDENT: "-"
       CODESIGN_TEAM: ""
@@ -82,7 +82,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build deps
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config ccache
+        run: |
+          sudo add-apt-repository --yes ppa:obsproject/obs-studio
+          sudo apt-get update
+          sudo apt-get install -y obs-studio cmake ninja-build pkg-config ccache
       - name: Configure
         run: cmake --preset ubuntu-ci-x86_64
       - name: Build
