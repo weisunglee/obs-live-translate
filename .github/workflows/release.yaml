@@ -55,7 +55,7 @@ jobs:
       - name: Configure
         run: cmake --preset macos
       - name: Build
-        run: cmake --build --preset macos
+        run: cmake --build --preset macos --target obs-live-translate
       - name: Package
         run: |
           set -e
@@ -89,7 +89,7 @@ jobs:
       - name: Configure
         run: cmake --preset ubuntu-x86_64
       - name: Build
-        run: cmake --build --preset ubuntu-x86_64
+        run: cmake --build --preset ubuntu-x86_64 --target obs-live-translate
       - name: Package
         run: |
           set -e

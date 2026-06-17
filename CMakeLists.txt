@@ -28,12 +28,25 @@ FetchContent_Declare(ixwebsocket
   GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
   GIT_TAG v11.4.5)
 FetchContent_MakeAvailable(ixwebsocket)
-set_target_properties(ixwebsocket PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
-# COMPILE_WARNING_AS_ERROR doesn't override the Xcode/template-level -Werror, so
-# explicitly stop the third-party IXWebSocket sources from failing the build on
-# their own warnings (e.g. -Wnewline-eof on macOS clang).
+# Don't let the third-party IXWebSocket sources fail the build on their own
+# warnings. COMPILE_WARNING_AS_ERROR covers CMake's mechanism; the macOS Xcode
+# generator applies -Werror via GCC_TREAT_WARNINGS_AS_ERRORS, so disable that too.
+set_target_properties(ixwebsocket PROPERTIES
+  COMPILE_WARNING_AS_ERROR OFF
+  XCODE_ATTRIBUTE_GCC_TREAT_WARNINGS_AS_ERRORS NO)
 if(NOT MSVC)
   target_compile_options(ixwebsocket PRIVATE -Wno-error)
+endif()
+# IXWebSocket v11.4.5 leaks a Windows-only "bcrypt" link dependency; drop it on
+# platforms where that library does not exist.
+if(NOT WIN32)
+  foreach(_prop INTERFACE_LINK_LIBRARIES LINK_LIBRARIES)
+    get_target_property(_ixws_libs ixwebsocket ${_prop})
+    if(_ixws_libs)
+      list(REMOVE_ITEM _ixws_libs bcrypt)
+      set_target_properties(ixwebsocket PROPERTIES ${_prop} "${_ixws_libs}")
+    endif()
+  endforeach()
 endif()
 
 add_library(${CMAKE_PROJECT_NAME} MODULE
