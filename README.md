@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon.png" alt="Gemini Live Translate for OBS" width="120">
+</p>
+
 # Gemini Live Translate for OBS
 
 [![Latest release](https://img.shields.io/github/v/release/weisunglee/obs-live-translate?sort=semver)](https://github.com/weisunglee/obs-live-translate/releases)
