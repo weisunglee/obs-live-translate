@@ -17,9 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake --preset windows-ci-x64
+        run: cmake --preset windows-x64
       - name: Build
-        run: cmake --build --preset windows-ci-x64
+        run: cmake --build --preset windows-x64
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
       - name: Package
@@ -53,9 +53,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake --preset macos-ci
+        run: cmake --preset macos
       - name: Build
-        run: cmake --build --preset macos-ci
+        run: cmake --build --preset macos
       - name: Package
         run: |
           set -e
@@ -85,11 +85,11 @@ jobs:
         run: |
           sudo add-apt-repository --yes ppa:obsproject/obs-studio
           sudo apt-get update
-          sudo apt-get install -y obs-studio cmake ninja-build pkg-config ccache
+          sudo apt-get install -y obs-studio libsimde-dev cmake ninja-build pkg-config ccache
       - name: Configure
-        run: cmake --preset ubuntu-ci-x86_64
+        run: cmake --preset ubuntu-x86_64
       - name: Build
-        run: cmake --build --preset ubuntu-ci-x86_64
+        run: cmake --build --preset ubuntu-x86_64
       - name: Package
         run: |
           set -e
