@@ -1,7 +1,7 @@
 # OBS Live Translate
 
-A native **Windows** OBS Studio plugin that does real-time **speech-to-speech**
-translation using the Google **Gemini Live API**
+A native OBS Studio plugin (**Windows · macOS · Linux**) that does real-time
+**speech-to-speech** translation using the Google **Gemini Live API**
 (`gemini-3.5-live-translate-preview`). It captures a microphone's audio, streams
 it to Gemini, and plays the translated speech back as a separate OBS audio
 source you can route to its own track — so a stream/recording can carry both the
@@ -83,12 +83,23 @@ Current behavior:
 
 ## Install (prebuilt)
 
-Grab the latest `obs-live-translate-*-windows-x64.zip` from the
-[Releases](https://github.com/weisunglee/obs-live-translate/releases) page, close
-OBS, and extract the `obs-plugins` folder into your OBS Studio install directory
-(e.g. `C:\Program Files\obs-studio\`) so the DLL lands at
-`obs-plugins\64bit\obs-live-translate.dll`. The build is unsigned, so Windows
-SmartScreen / antivirus may warn on first run.
+Download the package for your platform from the
+[Releases](https://github.com/weisunglee/obs-live-translate/releases) page, **with
+OBS closed**:
+
+- **Windows** — run `…-windows-x64-installer.exe` (it detects your OBS install
+  automatically), or extract `…-windows-x64.zip` into your OBS Studio directory
+  (e.g. `C:\Program Files\obs-studio\`). Unsigned, so SmartScreen may warn.
+- **macOS** — unzip `…-macos-universal.zip` and copy `obs-live-translate.plugin`
+  into `~/Library/Application Support/obs-studio/plugins/`. Unsigned / not
+  notarized; if Gatekeeper blocks it, run
+  `xattr -dr com.apple.quarantine ~/Library/Application\ Support/obs-studio/plugins/obs-live-translate.plugin`.
+- **Linux** — extract `…-linux-x86_64.tar.gz` into `~/.config/obs-studio/plugins/`
+  (the `.so` should end up at
+  `~/.config/obs-studio/plugins/obs-live-translate/bin/64bit/obs-live-translate.so`).
+
+> The macOS and Linux packages are produced by CI but **not yet verified on those
+> platforms** — feedback is welcome. Windows is the tested platform.
 
 ## Usage
 
