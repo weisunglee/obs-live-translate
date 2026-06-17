@@ -1,0 +1,126 @@
+name: Release
+
+# Push a version tag (e.g. v0.1.3) to build the plugin on Windows, macOS and
+# Linux runners and attach ready-to-install packages to a single GitHub Release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-x64:
+    name: Build Windows x64
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake --preset windows-ci-x64
+      - name: Build
+        run: cmake --build --preset windows-ci-x64
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Package
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $ver = $tag -replace '^v', ''
+          $dll = "build_x64/RelWithDebInfo/obs-live-translate.dll"
+          if (-not (Test-Path $dll)) { throw "DLL not found at $dll" }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          # drop-in zip
+          New-Item -ItemType Directory -Force -Path "stage/obs-plugins/64bit" | Out-Null
+          Copy-Item $dll "stage/obs-plugins/64bit/"
+          "Close OBS, then copy the obs-plugins folder into your OBS Studio install directory (e.g. C:\Program Files\obs-studio\). The build is unsigned, so SmartScreen may warn." | Set-Content "stage/INSTALL.txt"
+          Compress-Archive -Path "stage/*" -DestinationPath "dist/obs-live-translate-$tag-windows-x64.zip" -Force
+          # installer
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$ver" "installer\obs-live-translate.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+          Copy-Item "installer/Output/*.exe" dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/*
+
+  macos:
+    name: Build macOS (universal)
+    runs-on: macos-14
+    env:
+      CODESIGN_IDENT: "-"
+      CODESIGN_TEAM: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake --preset macos-ci
+      - name: Build
+        run: cmake --build --preset macos-ci
+      - name: Package
+        run: |
+          set -e
+          tag="$GITHUB_REF_NAME"
+          plugin=$(find build_macos -maxdepth 4 -name '*.plugin' -type d | head -1)
+          if [ -z "$plugin" ]; then echo "no .plugin bundle found"; find build_macos -name '*.plugin'; exit 1; fi
+          mkdir -p dist stage
+          cp -R "$plugin" stage/
+          cat > stage/INSTALL.txt <<'EOF'
+          Close OBS, then copy obs-live-translate.plugin into:
+            ~/Library/Application Support/obs-studio/plugins/
+          The build is unsigned / not notarized. If macOS blocks it, run:
+            xattr -dr com.apple.quarantine ~/Library/Application\ Support/obs-studio/plugins/obs-live-translate.plugin
+          EOF
+          (cd stage && zip -qry "$GITHUB_WORKSPACE/dist/obs-live-translate-$tag-macos-universal.zip" .)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*
+
+  linux-x86_64:
+    name: Build Linux x86_64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config ccache
+      - name: Configure
+        run: cmake --preset ubuntu-ci-x86_64
+      - name: Build
+        run: cmake --build --preset ubuntu-ci-x86_64
+      - name: Package
+        run: |
+          set -e
+          tag="$GITHUB_REF_NAME"
+          so=$(find build_x86_64 -maxdepth 4 -name 'obs-live-translate.so' -type f | head -1)
+          if [ -z "$so" ]; then echo "no .so found"; find build_x86_64 -name '*.so'; exit 1; fi
+          mkdir -p dist "stage/obs-live-translate/bin/64bit"
+          cp "$so" "stage/obs-live-translate/bin/64bit/"
+          cat > stage/INSTALL.txt <<'EOF'
+          Close OBS, then copy the obs-live-translate folder into:
+            ~/.config/obs-studio/plugins/
+          (the .so should be at
+           ~/.config/obs-studio/plugins/obs-live-translate/bin/64bit/obs-live-translate.so)
+          EOF
+          tar -C stage -czf "dist/obs-live-translate-$tag-linux-x86_64.tar.gz" obs-live-translate INSTALL.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: dist/*
+
+  release:
+    name: Create GitHub Release
+    needs: [windows-x64, macos, linux-x86_64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          files=$(find artifacts -type f)
+          echo "Attaching:"; echo "$files"
+          gh release create "$GITHUB_REF_NAME" $files \
+            -R "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
