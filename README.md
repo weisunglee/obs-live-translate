@@ -1,5 +1,10 @@
 # Gemini Live Translate for OBS
 
+[![Latest release](https://img.shields.io/github/v/release/weisunglee/obs-live-translate?sort=semver)](https://github.com/weisunglee/obs-live-translate/releases)
+[![Release build](https://github.com/weisunglee/obs-live-translate/actions/workflows/release.yaml/badge.svg)](https://github.com/weisunglee/obs-live-translate/actions/workflows/release.yaml)
+[![License: GPL v2](https://img.shields.io/badge/license-GPLv2-blue.svg)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
+
 A native OBS Studio plugin (**Windows · macOS · Linux**) that does real-time
 **speech-to-speech** translation using the Google **Gemini Live API**
 (`gemini-3.5-live-translate-preview`). It captures a microphone's audio, streams
@@ -64,9 +69,9 @@ Notes:
 
 ## Status
 
-Released for Windows x64 — grab a prebuilt installer or zip from the
-[Releases](https://github.com/weisunglee/obs-live-translate/releases) page.
-Current behavior:
+Released for **Windows, macOS and Linux** — grab a prebuilt package from the
+[Releases](https://github.com/weisunglee/obs-live-translate/releases) page
+(Windows is the tested platform; see the note under *Install*). Current behavior:
 
 - ✅ Mic → Gemini streaming (continuous, including pause silence), translated
   audio played back via the OBS mixer.
@@ -120,29 +125,46 @@ OBS closed**:
 
    ![Gemini Translated Audio source](screenshots/audio-source.png)
 
-## Build (Windows x64)
+## Build from source
 
-Requires Visual Studio 2022, CMake ≥ 3.28, and libobs (OBS 31.x). Dependencies
-(nlohmann/json, IXWebSocket + mbedTLS) are fetched automatically by CMake;
-libobs/obs-deps are provisioned via `buildspec.json`.
+Requires CMake ≥ 3.28 and a C++17 toolchain. Dependencies (nlohmann/json,
+IXWebSocket + mbedTLS) are fetched by CMake; libobs/obs-deps come from
+`buildspec.json` on Windows/macOS and from the system on Linux. The
+`-DCMAKE_COMPILE_WARNING_AS_ERROR=OFF` flag keeps third-party warnings from
+failing the build.
+
+**Windows** (Visual Studio 2022) — produces `build_x64\RelWithDebInfo\obs-live-translate.dll`:
 
 ```powershell
-# Configure (downloads OBS deps on first run)
-cmake --preset windows-x64
-
-# Build the plugin DLL + tests
+cmake --preset windows-x64 -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
 cmake --build --preset windows-x64
-
-# Build only the libobs-free unit tests
-cmake --build --preset windows-x64 --target unit-tests
 ```
 
-The build produces `build_x64\RelWithDebInfo\obs-live-translate.dll`. Copy it to
-`…\obs-studio\obs-plugins\64bit\` (OBS must be closed) to install.
+**macOS** (Xcode 16+, universal) — produces `build_macos/RelWithDebInfo/obs-live-translate.plugin`:
+
+```bash
+cmake --preset macos -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+cmake --build --preset macos --target obs-live-translate
+```
+
+**Linux** — libobs comes from the obsproject PPA; install build deps first:
+
+```bash
+sudo add-apt-repository --yes ppa:obsproject/obs-studio
+sudo apt-get update
+sudo apt-get install -y obs-studio libsimde-dev libmbedtls-dev cmake ninja-build pkg-config
+cmake --preset ubuntu-x86_64 -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+cmake --build --preset ubuntu-x86_64 --target obs-live-translate   # build_x86_64/obs-live-translate.so
+```
+
+(The exact CI steps live in [`.github/workflows/release.yaml`](.github/workflows/release.yaml).)
 
 ## Test
 
-```powershell
+Use your platform's build directory (`build_x64` on Windows, `build_macos` on
+macOS, `build_x86_64` on Linux):
+
+```bash
 # Run the full unit-test suite
 ctest --test-dir build_x64 --output-on-failure
 
