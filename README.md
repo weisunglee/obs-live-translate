@@ -72,11 +72,12 @@ Current behavior:
 - ✅ Optional **echo** toggle (default on): output speech even when it is already
   in the target language. With it off, input already in the target language
   stays silent.
-- ⚠️ The translation trails live speech by a few seconds — this is the model's
-  own processing latency, not a plugin delay (measured: our output buffer holds
-  <50 ms). For **recordings**, stop a few seconds after you finish speaking, or
-  the still-in-flight translation of your last words is cut; **live streams** are
-  unaffected. See the notes in `docs/`.
+- ⚠️ The translated audio trails your live speech by a few seconds. Most of that
+  is the model's own translation latency; the plugin adds a fixed ~600 ms
+  playback buffer on top (it smooths jitter and does not accumulate — measured
+  backlog stays <50 ms). For **recordings**, stop a few seconds after you finish
+  speaking or the still-in-flight translation of your last words is cut; **live
+  streams** are unaffected.
 
 ## Install (prebuilt)
 
