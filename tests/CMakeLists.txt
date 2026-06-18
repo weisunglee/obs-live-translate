@@ -11,12 +11,14 @@ add_executable(unit-tests
   test-backoff.cpp
   test-live-protocol.cpp
   test-ring-buffer.cpp
+  test-owner-guard.cpp
   test-smoke.cpp
   ${CMAKE_SOURCE_DIR}/src/audio-convert.cpp
   ${CMAKE_SOURCE_DIR}/src/audio-pacing.cpp
   ${CMAKE_SOURCE_DIR}/src/backoff.cpp
   ${CMAKE_SOURCE_DIR}/src/base64.cpp
   ${CMAKE_SOURCE_DIR}/src/live-protocol.cpp
+  ${CMAKE_SOURCE_DIR}/src/owner-guard.cpp
   ${CMAKE_SOURCE_DIR}/src/ring-buffer.cpp
 )
 target_include_directories(unit-tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
