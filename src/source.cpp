@@ -26,7 +26,6 @@ struct SourceData {
     obs_source_t *context = nullptr;
     std::thread thread;
     std::atomic<bool> active{false};
-    std::atomic<bool> owns_output{false}; // true iff this source owns the output
     lt::OutputTimestamper timestamper{kOutputSampleRate, kMaxLeadNs};
 };
 
@@ -56,7 +55,6 @@ void push_loop(SourceData *d)
         // First source to claim the shared output wins; extras stay silent so
         // they don't steal chunks from the active one (reads are consuming).
         bool owner = session.claim_output(d);
-        d->owns_output = owner;
         if (!owner) {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(kWaitTimeoutMs));
