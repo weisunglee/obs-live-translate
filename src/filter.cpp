@@ -14,6 +14,7 @@ struct FilterData {
     std::string api_key;
     std::string target_lang = "en";
     bool echo_target = true;
+    bool active = false; // true iff this filter currently owns the input stream
 };
 
 const char *filter_get_name(void *)
@@ -46,8 +47,21 @@ void filter_update(void *data, obs_data_t *settings)
     d->api_key = obs_data_get_string(settings, "api_key");
     d->target_lang = obs_data_get_string(settings, "target_lang");
     d->echo_target = obs_data_get_bool(settings, "echo_target");
-    lt::TranslationSession::instance().configure(d->api_key, d->target_lang,
-                                                 d->echo_target);
+
+    auto &session = lt::TranslationSession::instance();
+    if (d->api_key.empty()) {
+        // Nothing to run. If we were the owner, release so another filter can
+        // take over.
+        if (d->active) {
+            session.release_input(d);
+            d->active = false;
+        }
+        return;
+    }
+    // First filter to claim the shared session wins; extras stay disabled.
+    d->active = session.claim_input(d);
+    if (d->active)
+        session.configure(d->api_key, d->target_lang, d->echo_target);
 }
 
 void *filter_create(obs_data_t *settings, obs_source_t *source)
@@ -62,6 +76,7 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 void filter_destroy(void *data)
 {
     auto *d = static_cast<FilterData *>(data);
+    lt::TranslationSession::instance().release_input(d);
     if (d->resampler) audio_resampler_destroy(d->resampler);
     delete d;
 }
@@ -70,6 +85,18 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
 {
     auto *d = static_cast<FilterData *>(data);
     if (!d->resampler || d->api_key.empty()) return audio;
+
+    auto &session = lt::TranslationSession::instance();
+    // Claim/keep ownership. If another filter owns the session we stay a passive
+    // pass-through; when the previous owner goes away we pick it up here and
+    // (re)apply our config on the inactive->active transition.
+    bool owner = session.claim_input(d);
+    if (owner != d->active) {
+        d->active = owner;
+        if (owner)
+            session.configure(d->api_key, d->target_lang, d->echo_target);
+    }
+    if (!owner) return audio;
 
     uint8_t *out[MAX_AV_PLANES] = {};
     uint32_t out_frames = 0;
@@ -84,12 +111,12 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
         // handling and delays translation output until the next speech resumes.
         auto chunks = d->chunker.push(out[0], out_frames * 2);
         for (auto &c : chunks)
-            lt::TranslationSession::instance().push_input_pcm(c.data(), c.size());
+            session.push_input_pcm(c.data(), c.size());
     }
     return audio;
 }
 
-obs_properties_t *filter_properties(void *)
+obs_properties_t *filter_properties(void *data)
 {
     obs_properties_t *props = obs_properties_create();
     obs_property_t *list = obs_properties_add_list(
@@ -111,9 +138,13 @@ obs_properties_t *filter_properties(void *)
         obs_module_text("Note: the API key is stored in plaintext in your "
                         "scene collection file. Do not share that file."),
         OBS_TEXT_INFO);
-    obs_properties_add_text(props, "status",
-                            lt::TranslationSession::instance().status_text().c_str(),
-                            OBS_TEXT_INFO);
+    auto *d = static_cast<FilterData *>(data);
+    std::string status =
+        (d && lt::TranslationSession::instance().input_owned_by_other(d))
+            ? obs_module_text("Another Gemini Live Translate filter is already "
+                              "active; this one is disabled.")
+            : lt::TranslationSession::instance().status_text();
+    obs_properties_add_text(props, "status", status.c_str(), OBS_TEXT_INFO);
     return props;
 }
 
