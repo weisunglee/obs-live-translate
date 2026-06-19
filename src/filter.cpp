@@ -93,6 +93,9 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
     bool owner = session.claim_input(d);
     if (owner != d->active) {
         d->active = owner;
+        // Runs once per takeover, on the audio thread. configure() only spawns
+        // the worker (and at most joins an already-exited one); it never joins a
+        // live connection, so it won't stall the audio callback.
         if (owner)
             session.configure(d->api_key, d->target_lang, d->echo_target);
     }
