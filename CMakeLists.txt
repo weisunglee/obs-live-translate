@@ -47,6 +47,7 @@ add_library(${CMAKE_PROJECT_NAME} MODULE
   src/ring-buffer.cpp
   src/live-protocol.cpp
   src/backoff.cpp
+  src/owner-guard.cpp
   src/source.cpp
   src/translation-session.cpp
 )

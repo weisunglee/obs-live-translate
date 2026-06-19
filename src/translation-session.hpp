@@ -1,4 +1,5 @@
 #pragma once
+#include "owner-guard.hpp"
 #include "ring-buffer.hpp"
 #include <atomic>
 #include <condition_variable>
@@ -25,8 +26,17 @@ public:
     bool take_interrupted();
     uint64_t input_idle_ms();
 
+    // Single-owner guard for the output stream: only one translated-audio
+    // source may own it at a time (first-wins), so two sources don't steal
+    // chunks from each other. (The filter/input side is guarded per-source in
+    // filter.cpp instead.)
+    bool claim_output(const void *token);
+    void release_output(const void *token);
+    bool output_owned_by_other(const void *token);
+
     ConnStatus status();
     std::string status_text();
+    bool is_running();
 
 private:
     TranslationSession();
@@ -45,6 +55,8 @@ private:
     std::string api_key_;
     std::string target_lang_;
     bool echo_target_ = true;
+
+    OwnerGuard output_owner_;
 
     std::atomic<bool> running_{false};
     std::atomic<bool> config_changed_{false};

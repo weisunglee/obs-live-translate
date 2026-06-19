@@ -88,6 +88,13 @@ Released for **Windows, macOS and Linux** — grab a prebuilt package from the
 - ✅ Sentence endings play in full — streaming the mic continuously (silence
   included) lets the model detect when an utterance ends and emit it promptly,
   instead of holding it until the next one starts.
+- ✅ Single-session by design. If a source has two *Gemini Live Translate*
+  filters, only the first runs; the extra is disabled with a warning in its
+  properties (removing the first lets the other take over). Likewise only one
+  *Gemini Translated Audio* source plays; a second is muted with a warning.
+  Note: the plugin runs a single translation stream, so adding the **filter to
+  two different sources** is unsupported (both would feed the one session) —
+  keep it on a single source.
 - ⚠️ The translated audio lags your speech by a few seconds — the model's
   translation latency plus a fixed ~600 ms smoothing buffer (which doesn't
   accumulate; measured backlog stays <50 ms). Tip: when **recording**, pause a

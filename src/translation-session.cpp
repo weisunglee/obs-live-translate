@@ -41,6 +41,11 @@ ConnStatus TranslationSession::status()
     return status_;
 }
 
+bool TranslationSession::is_running()
+{
+    return running_.load();
+}
+
 std::string TranslationSession::status_text()
 {
     std::lock_guard<std::mutex> lk(status_mtx_);
@@ -86,6 +91,24 @@ void TranslationSession::configure(const std::string &api_key,
         if (thread_.joinable()) thread_.join();
         thread_ = std::thread([this] { run(); });
     }
+}
+
+bool TranslationSession::claim_output(const void *token)
+{
+    return output_owner_.claim(token);
+}
+
+void TranslationSession::release_output(const void *token)
+{
+    // Releasing output ownership does not stop the session: the worker thread is
+    // driven by the filter input, so a source detaching must not stop a
+    // still-producing translation.
+    output_owner_.release(token);
+}
+
+bool TranslationSession::output_owned_by_other(const void *token)
+{
+    return output_owner_.owned_by_other(token);
 }
 
 void TranslationSession::stop()
