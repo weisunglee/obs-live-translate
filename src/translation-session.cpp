@@ -88,6 +88,41 @@ void TranslationSession::configure(const std::string &api_key,
     }
 }
 
+bool TranslationSession::claim_input(const void *token)
+{
+    return input_owner_.claim(token);
+}
+
+void TranslationSession::release_input(const void *token)
+{
+    input_owner_.release(token);
+    // No filter owns the input stream anymore: tear down the WebSocket so we
+    // don't stay connected with nothing to translate. The next filter to claim
+    // input restarts it via configure().
+    if (!input_owner_.has_owner())
+        stop();
+}
+
+bool TranslationSession::input_owned_by_other(const void *token)
+{
+    return input_owner_.owned_by_other(token);
+}
+
+bool TranslationSession::claim_output(const void *token)
+{
+    return output_owner_.claim(token);
+}
+
+void TranslationSession::release_output(const void *token)
+{
+    output_owner_.release(token);
+}
+
+bool TranslationSession::output_owned_by_other(const void *token)
+{
+    return output_owner_.owned_by_other(token);
+}
+
 void TranslationSession::stop()
 {
     running_.exchange(false);

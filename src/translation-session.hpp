@@ -1,4 +1,5 @@
 #pragma once
+#include "owner-guard.hpp"
 #include "ring-buffer.hpp"
 #include <atomic>
 #include <condition_variable>
@@ -25,6 +26,16 @@ public:
     bool take_interrupted();
     uint64_t input_idle_ms();
 
+    // Single-owner guards: only one filter may own the input stream and only
+    // one source may own the output stream at a time (first-wins). Extra
+    // instances are disabled so two of either don't corrupt the shared session.
+    bool claim_input(const void *token);
+    void release_input(const void *token);
+    bool input_owned_by_other(const void *token);
+    bool claim_output(const void *token);
+    void release_output(const void *token);
+    bool output_owned_by_other(const void *token);
+
     ConnStatus status();
     std::string status_text();
 
@@ -45,6 +56,9 @@ private:
     std::string api_key_;
     std::string target_lang_;
     bool echo_target_ = true;
+
+    OwnerGuard input_owner_;
+    OwnerGuard output_owner_;
 
     std::atomic<bool> running_{false};
     std::atomic<bool> config_changed_{false};
