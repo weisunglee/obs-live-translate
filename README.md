@@ -136,6 +136,41 @@ OBS closed**:
 
    ![Gemini Translated Audio source](screenshots/audio-source.png)
 
+## Remote control (OBS WebSocket)
+
+The filter's settings are plain OBS source settings, so you can change the
+**target language** and **echo** option live from any OBS WebSocket v5 client
+(scripts, [`obs-cli`](https://github.com/muesli/obs-cli), Advanced Scene
+Switcher, your own app) using the `SetSourceFilterSettings` request — no extra
+plugin support needed:
+
+```json
+{ "requestType": "SetSourceFilterSettings",
+  "requestData": {
+    "sourceName": "Mic/Aux",
+    "filterName": "Gemini Live Translate",
+    "filterSettings": { "target_lang": "ja" } } }
+```
+
+| setting | type | meaning |
+|---|---|---|
+| `target_lang` | string | BCP-47 code from [`src/languages.hpp`](src/languages.hpp) (e.g. `en`, `zh`, `ja`, `pt-BR`) — the value, not the display name |
+| `echo_target` | bool | output speech even when the input is already in the target language |
+| `api_key` | string | Gemini API key (rarely sent remotely; clearing it stops the session) |
+
+Notes:
+
+- `sourceName` / `filterName` must match your OBS names exactly (`filterName`
+  defaults to *Gemini Live Translate*).
+- Keep the request's default `overlay: true` (merge). With `overlay: false` OBS
+  first resets the filter to defaults — and since `api_key` has no default, that
+  **clears the key and stops translation**.
+- Changing `target_lang` reconnects the session with the new language, so expect
+  a brief gap.
+- This is **set-only**. The runtime connection status (Connecting / Connected /
+  API-key error) is not exposed over WebSocket — `GetSourceFilterSettings`
+  returns the stored settings, not the live status.
+
 ## Build from source
 
 Requires CMake ≥ 3.28 and a C++17 toolchain. Dependencies (nlohmann/json,
