@@ -28,7 +28,7 @@ TEST_CASE("release frees the resource for another token")
     OwnerGuard g;
     int a, b;
     REQUIRE(g.claim(&a));
-    g.release(&a);
+    REQUIRE(g.release(&a)); // released the last claim -> now unowned
     REQUIRE_FALSE(g.has_owner());
     REQUIRE(g.claim(&b));
     REQUIRE(g.owned_by_other(&a));
@@ -39,7 +39,7 @@ TEST_CASE("a non-owner cannot release")
     OwnerGuard g;
     int a, b;
     REQUIRE(g.claim(&a));
-    g.release(&b); // no-op: b is not the owner
+    REQUIRE_FALSE(g.release(&b)); // no-op: b is not the owner, a still owns it
     REQUIRE(g.has_owner());
     REQUIRE_FALSE(g.claim(&b));
 }

@@ -14,7 +14,9 @@ public:
     // Returns true iff token owns the resource after the call.
     bool claim(const void *token);
     // Clear ownership, but only if token is the current holder (else no-op).
-    void release(const void *token);
+    // Returns true iff the resource is unowned after the call, so a caller can
+    // atomically release and learn whether it freed the last claim.
+    bool release(const void *token);
     // True iff some token other than `token` currently owns the resource.
     bool owned_by_other(const void *token);
     // True iff any token currently owns the resource.
