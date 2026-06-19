@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <obs-module.h>
+#include <string>
 #include <thread>
 #include <util/platform.h>
 #include <vector>
@@ -25,6 +26,7 @@ struct SourceData {
     obs_source_t *context = nullptr;
     std::thread thread;
     std::atomic<bool> active{false};
+    std::atomic<bool> owns_output{false}; // true iff this source owns the output
     lt::OutputTimestamper timestamper{kOutputSampleRate, kMaxLeadNs};
 };
 
@@ -33,11 +35,34 @@ const char *source_get_name(void *)
     return obs_module_text("Gemini Translated Audio");
 }
 
+obs_properties_t *source_properties(void *data)
+{
+    obs_properties_t *props = obs_properties_create();
+    auto *d = static_cast<SourceData *>(data);
+    std::string status =
+        (d && lt::TranslationSession::instance().output_owned_by_other(d))
+            ? obs_module_text("Another Gemini Translated Audio source is "
+                              "already active; this one is muted.")
+            : obs_module_text("Active");
+    obs_properties_add_text(props, "status", status.c_str(), OBS_TEXT_INFO);
+    return props;
+}
+
 void push_loop(SourceData *d)
 {
     lt::TranslationSession &session = lt::TranslationSession::instance();
     std::vector<uint8_t> buf(kDrainCapBytes);
     while (d->active) {
+        // First source to claim the shared output wins; extras stay silent so
+        // they don't steal chunks from the active one (reads are consuming).
+        bool owner = session.claim_output(d);
+        d->owns_output = owner;
+        if (!owner) {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(kWaitTimeoutMs));
+            continue;
+        }
+
         if (session.take_interrupted())
             d->timestamper.reset();
 
@@ -82,6 +107,7 @@ void source_destroy(void *data)
     auto *d = static_cast<SourceData *>(data);
     d->active = false;
     if (d->thread.joinable()) d->thread.join();
+    lt::TranslationSession::instance().release_output(d);
     delete d;
 }
 
@@ -95,5 +121,6 @@ struct obs_source_info live_translate_source_info = [] {
     info.get_name = source_get_name;
     info.create = source_create;
     info.destroy = source_destroy;
+    info.get_properties = source_properties;
     return info;
 }();
