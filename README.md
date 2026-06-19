@@ -88,6 +88,10 @@ Released for **Windows, macOS and Linux** — grab a prebuilt package from the
 - ✅ Sentence endings play in full — streaming the mic continuously (silence
   included) lets the model detect when an utterance ends and emit it promptly,
   instead of holding it until the next one starts.
+- ✅ Single-session by design: one active filter and one active translated-audio
+  source. If you add a second of either, the first keeps working and the extra
+  is disabled (filter) / muted (source) with a warning in its properties;
+  removing the active one lets the extra take over.
 - ⚠️ The translated audio lags your speech by a few seconds — the model's
   translation latency plus a fixed ~600 ms smoothing buffer (which doesn't
   accumulate; measured backlog stays <50 ms). Tip: when **recording**, pause a
