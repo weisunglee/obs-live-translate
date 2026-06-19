@@ -36,6 +36,7 @@ public:
 
     ConnStatus status();
     std::string status_text();
+    bool is_running();
 
 private:
     TranslationSession();

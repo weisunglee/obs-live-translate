@@ -41,6 +41,11 @@ ConnStatus TranslationSession::status()
     return status_;
 }
 
+bool TranslationSession::is_running()
+{
+    return running_.load();
+}
+
 std::string TranslationSession::status_text()
 {
     std::lock_guard<std::mutex> lk(status_mtx_);

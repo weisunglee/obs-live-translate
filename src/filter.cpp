@@ -120,19 +120,26 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
     // a duplicate on the same source stays a passive pass-through. Recomputed
     // live each callback, so when the primary is removed this one takes over.
     bool primary = is_primary_filter(d);
+    bool became_primary = primary && !d->active;
     if (primary != d->active) {
         d->active = primary;
-        // Runs once per takeover, on the audio thread. configure() only spawns
-        // the worker (and at most joins an already-exited one); it never joins a
-        // live connection, so it won't stall the audio callback.
-        if (primary)
-            session.configure(d->api_key, d->target_lang, d->echo_target);
         // Primary status changed: refresh the (possibly open) properties panel
         // so a stale "disabled" warning clears. Safe from the audio thread —
         // OBS marshals the refresh to the UI thread.
         obs_source_update_properties(d->context);
     }
     if (!primary) return audio;
+
+    // (Re)configure when we take over, and also if the session was cleanly
+    // stopped while we are primary — e.g. the previous primary's teardown
+    // raced our takeover and stopped the session right after we claimed it.
+    // Skip when it stopped on an auth error, so a bad key doesn't spin-restart.
+    // configure() only spawns the worker (or reaps an already-exited one); it
+    // never joins a live connection, so it won't stall the audio callback.
+    bool needs_start =
+        !session.is_running() && session.status() != lt::ConnStatus::AuthError;
+    if (became_primary || needs_start)
+        session.configure(d->api_key, d->target_lang, d->echo_target);
 
     uint8_t *out[MAX_AV_PLANES] = {};
     uint32_t out_frames = 0;
