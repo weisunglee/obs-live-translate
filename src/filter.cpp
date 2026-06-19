@@ -1,11 +1,14 @@
 #include "audio-convert.hpp"
 #include "languages.hpp"
 #include "translation-session.hpp"
+#include <cstring>
 #include <media-io/audio-resampler.h>
 #include <obs-module.h>
 #include <string>
 
 namespace {
+
+constexpr const char *kFilterId = "gemini_live_translate_filter";
 
 struct FilterData {
     obs_source_t *context = nullptr;
@@ -14,12 +17,38 @@ struct FilterData {
     std::string api_key;
     std::string target_lang = "en";
     bool echo_target = true;
-    bool active = false; // true iff this filter currently owns the input stream
+    bool active = false; // true iff this filter is the primary one feeding the session
 };
 
 const char *filter_get_name(void *)
 {
     return obs_module_text("Gemini Live Translate");
+}
+
+struct PrimaryScan {
+    obs_source_t *first; // first Gemini filter on the parent, in filter order
+};
+
+void primary_scan_cb(obs_source_t * /*parent*/, obs_source_t *child, void *param)
+{
+    auto *s = static_cast<PrimaryScan *>(param);
+    if (!s->first && std::strcmp(obs_source_get_id(child), kFilterId) == 0)
+        s->first = child;
+}
+
+// Per-source first-wins: a filter is "primary" iff it is the first Gemini Live
+// Translate filter on its parent source. A second copy on the SAME source is
+// not primary (it gets disabled + warned). This queries live OBS state on every
+// call, so there is no persistent owner that can go stale. Note: this does NOT
+// coordinate across different sources — the shared session has a single stream,
+// so putting the filter on two different sources is unsupported (see README).
+bool is_primary_filter(FilterData *d)
+{
+    obs_source_t *parent = obs_filter_get_parent(d->context);
+    if (!parent) return true; // not attached yet; don't show a false warning
+    PrimaryScan scan{nullptr};
+    obs_source_enum_filters(parent, primary_scan_cb, &scan);
+    return scan.first == nullptr || scan.first == d->context;
 }
 
 void create_resampler(FilterData *d)
@@ -49,19 +78,17 @@ void filter_update(void *data, obs_data_t *settings)
     d->echo_target = obs_data_get_bool(settings, "echo_target");
 
     auto &session = lt::TranslationSession::instance();
-    if (d->api_key.empty()) {
-        // Nothing to run. If we were the owner, release so another filter can
-        // take over.
-        if (d->active) {
-            session.release_input(d);
-            d->active = false;
-        }
-        return;
-    }
-    // First filter to claim the shared session wins; extras stay disabled.
-    d->active = session.claim_input(d);
-    if (d->active)
+    bool run = !d->api_key.empty() && is_primary_filter(d);
+    if (run) {
+        d->active = true;
         session.configure(d->api_key, d->target_lang, d->echo_target);
+    } else if (d->active) {
+        // We were the primary feeding the session but no longer should be
+        // (key cleared, or another filter is now first). Stop it; a remaining
+        // primary filter restarts it from its own audio callback.
+        d->active = false;
+        session.stop();
+    }
 }
 
 void *filter_create(obs_data_t *settings, obs_source_t *source)
@@ -76,7 +103,9 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 void filter_destroy(void *data)
 {
     auto *d = static_cast<FilterData *>(data);
-    lt::TranslationSession::instance().release_input(d);
+    // If we were feeding the session, stop it. A remaining same-source filter
+    // (if any) becomes primary and restarts it from its next audio callback.
+    if (d->active) lt::TranslationSession::instance().stop();
     if (d->resampler) audio_resampler_destroy(d->resampler);
     delete d;
 }
@@ -87,23 +116,23 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
     if (!d->resampler || d->api_key.empty()) return audio;
 
     auto &session = lt::TranslationSession::instance();
-    // Claim/keep ownership. If another filter owns the session we stay a passive
-    // pass-through; when the previous owner goes away we pick it up here and
-    // (re)apply our config on the inactive->active transition.
-    bool owner = session.claim_input(d);
-    if (owner != d->active) {
-        d->active = owner;
+    // Only the primary (first) Gemini filter on this source feeds the session;
+    // a duplicate on the same source stays a passive pass-through. Recomputed
+    // live each callback, so when the primary is removed this one takes over.
+    bool primary = is_primary_filter(d);
+    if (primary != d->active) {
+        d->active = primary;
         // Runs once per takeover, on the audio thread. configure() only spawns
         // the worker (and at most joins an already-exited one); it never joins a
         // live connection, so it won't stall the audio callback.
-        if (owner)
+        if (primary)
             session.configure(d->api_key, d->target_lang, d->echo_target);
-        // Ownership changed: refresh the (possibly open) properties panel so the
-        // stale "disabled" warning clears once this filter takes over. Safe from
-        // the audio thread — OBS marshals the refresh to the UI thread.
+        // Primary status changed: refresh the (possibly open) properties panel
+        // so a stale "disabled" warning clears. Safe from the audio thread —
+        // OBS marshals the refresh to the UI thread.
         obs_source_update_properties(d->context);
     }
-    if (!owner) return audio;
+    if (!primary) return audio;
 
     uint8_t *out[MAX_AV_PLANES] = {};
     uint32_t out_frames = 0;
@@ -147,9 +176,9 @@ obs_properties_t *filter_properties(void *data)
         OBS_TEXT_INFO);
     auto *d = static_cast<FilterData *>(data);
     std::string status =
-        (d && lt::TranslationSession::instance().input_owned_by_other(d))
-            ? obs_module_text("Another Gemini Live Translate filter is already "
-                              "active; this one is disabled.")
+        (d && !is_primary_filter(d))
+            ? obs_module_text("Another Gemini Live Translate filter on this "
+                              "source is already active; this one is disabled.")
             : lt::TranslationSession::instance().status_text();
     obs_properties_add_text(props, "status", status.c_str(), OBS_TEXT_INFO);
     return props;

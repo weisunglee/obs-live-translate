@@ -88,29 +88,6 @@ void TranslationSession::configure(const std::string &api_key,
     }
 }
 
-bool TranslationSession::claim_input(const void *token)
-{
-    return input_owner_.claim(token);
-}
-
-void TranslationSession::release_input(const void *token)
-{
-    // release() atomically clears our claim and reports whether the input stream
-    // is now unowned. If no filter owns it, tear down the WebSocket so we don't
-    // stay connected with nothing to translate; the next active filter reconnects
-    // when it applies its own configure().
-    //
-    // Must be called from an OBS lifecycle thread (filter create/destroy/update),
-    // never from the session worker thread, because stop() joins that thread.
-    if (input_owner_.release(token))
-        stop();
-}
-
-bool TranslationSession::input_owned_by_other(const void *token)
-{
-    return input_owner_.owned_by_other(token);
-}
-
 bool TranslationSession::claim_output(const void *token)
 {
     return output_owner_.claim(token);
@@ -118,8 +95,9 @@ bool TranslationSession::claim_output(const void *token)
 
 void TranslationSession::release_output(const void *token)
 {
-    // Asymmetric with release_input on purpose: the worker thread is driven by
-    // input, so a source detaching must not stop a still-producing translation.
+    // Releasing output ownership does not stop the session: the worker thread is
+    // driven by the filter input, so a source detaching must not stop a
+    // still-producing translation.
     output_owner_.release(token);
 }
 

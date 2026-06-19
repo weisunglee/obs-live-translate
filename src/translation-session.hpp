@@ -26,12 +26,10 @@ public:
     bool take_interrupted();
     uint64_t input_idle_ms();
 
-    // Single-owner guards: only one filter may own the input stream and only
-    // one source may own the output stream at a time (first-wins). Extra
-    // instances are disabled so two of either don't corrupt the shared session.
-    bool claim_input(const void *token);
-    void release_input(const void *token);
-    bool input_owned_by_other(const void *token);
+    // Single-owner guard for the output stream: only one translated-audio
+    // source may own it at a time (first-wins), so two sources don't steal
+    // chunks from each other. (The filter/input side is guarded per-source in
+    // filter.cpp instead.)
     bool claim_output(const void *token);
     void release_output(const void *token);
     bool output_owned_by_other(const void *token);
@@ -57,7 +55,6 @@ private:
     std::string target_lang_;
     bool echo_target_ = true;
 
-    OwnerGuard input_owner_;
     OwnerGuard output_owner_;
 
     std::atomic<bool> running_{false};
