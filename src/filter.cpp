@@ -98,6 +98,10 @@ struct obs_audio_data *filter_audio(void *data, struct obs_audio_data *audio)
         // live connection, so it won't stall the audio callback.
         if (owner)
             session.configure(d->api_key, d->target_lang, d->echo_target);
+        // Ownership changed: refresh the (possibly open) properties panel so the
+        // stale "disabled" warning clears once this filter takes over. Safe from
+        // the audio thread — OBS marshals the refresh to the UI thread.
+        obs_source_update_properties(d->context);
     }
     if (!owner) return audio;
 

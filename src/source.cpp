@@ -51,10 +51,16 @@ void push_loop(SourceData *d)
 {
     lt::TranslationSession &session = lt::TranslationSession::instance();
     std::vector<uint8_t> buf(kDrainCapBytes);
+    bool was_owner = false;
     while (d->active) {
         // First source to claim the shared output wins; extras stay silent so
         // they don't steal chunks from the active one (reads are consuming).
         bool owner = session.claim_output(d);
+        if (owner && !was_owner)
+            // Just took over output: refresh the (possibly open) properties
+            // panel so the stale "muted" warning clears.
+            obs_source_update_properties(d->context);
+        was_owner = owner;
         if (!owner) {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(kWaitTimeoutMs));
