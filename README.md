@@ -208,9 +208,12 @@ cmake --build --preset ubuntu-x86_64 --target obs-live-translate   # build_x86_6
 ## Test
 
 Use your platform's build directory (`build_x64` on Windows, `build_macos` on
-macOS, `build_x86_64` on Linux):
+macOS, `build_x86_64` on Linux). For example, on Windows:
 
 ```bash
+# Build the libobs-free unit-test binary first
+cmake --build --preset windows-x64 --target unit-tests
+
 # Run the full unit-test suite
 ctest --test-dir build_x64 --output-on-failure
 
